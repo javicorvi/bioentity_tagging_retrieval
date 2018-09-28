@@ -12,13 +12,20 @@ public class ReferenceValue {
 
 	
 	
-	public ReferenceValue(String value, Reference reference) {
+//	public ReferenceValue(String value, Reference reference) {
+//		super();
+//		this.value = value;
+//		//this.reference = reference;
+//		this.referenceName=reference.getName();
+//	}
+
+	public ReferenceValue(String name, String value) {
 		super();
 		this.value = value;
 		//this.reference = reference;
-		this.referenceName=reference.getName();
+		this.referenceName=name;
 	}
-
+	
 	public String getValue() {
 		return value;
 	}

@@ -47,7 +47,16 @@ public class Sentence implements LimtoxEntity {
 		this.text = text;
 	}
 
-
+	
+	public List<EntityInstanceFound> findEntitiesInstanceFoundByType(String type) {
+		List<EntityInstanceFound> entitiesInstanceFound = new ArrayList<EntityInstanceFound>();
+		for (EntityInstanceFound entityInstanceFound : this.entitiesInstanceFound) {
+			if(entityInstanceFound.getEntityInstance().getEntityTypeName().equals(type)){
+				entitiesInstanceFound.add(entityInstanceFound);
+			}
+		}
+		return entitiesInstanceFound;
+	}
 
 	public Integer getId() {
 		return id;
@@ -133,6 +142,7 @@ public class Sentence implements LimtoxEntity {
 		entitiesInstanceFound.add(entityInstanceFound);
 		
 	}
+
 	
 	
 	

@@ -20,6 +20,14 @@ public class EntityInstance {
 		this.referenceValues = referenceValues;
 	}
 
+	public EntityInstance(String value, String entityType, List<ReferenceValue> referenceValues) {
+		super();
+		this.value = value;
+		//this.entityType = entityType;
+		this.entityTypeName = entityType;
+		this.referenceValues = referenceValues;
+	}
+	
 	public String getValue() {
 		return value;
 	}

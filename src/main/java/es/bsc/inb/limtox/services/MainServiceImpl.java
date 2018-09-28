@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
@@ -26,14 +27,29 @@ import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import edu.stanford.nlp.ling.CoreLabel;
+import edu.stanford.nlp.ling.CoreAnnotations.LemmaAnnotation;
+import edu.stanford.nlp.ling.CoreAnnotations.NamedEntityTagAnnotation;
+import edu.stanford.nlp.ling.CoreAnnotations.PartOfSpeechAnnotation;
+import edu.stanford.nlp.ling.CoreAnnotations.TextAnnotation;
+import edu.stanford.nlp.ling.CoreAnnotations.TokensAnnotation;
 import edu.stanford.nlp.objectbank.ObjectBank;
+import edu.stanford.nlp.pipeline.Annotation;
+import edu.stanford.nlp.pipeline.StanfordCoreNLP;
+import es.bsc.inb.limtox.model.ChemicalCompoundHepatotoxicityTermPattern;
+import es.bsc.inb.limtox.model.ChemicalCompoundSentence;
+import es.bsc.inb.limtox.model.CustomEntityNameTagger;
 import es.bsc.inb.limtox.model.Document;
 import es.bsc.inb.limtox.model.DocumentSource;
 import es.bsc.inb.limtox.model.EntityInstance;
 import es.bsc.inb.limtox.model.EntityInstanceFound;
 import es.bsc.inb.limtox.model.EntityType;
+import es.bsc.inb.limtox.model.HepatotoxicityTermChemicalCompoundSentence;
+import es.bsc.inb.limtox.model.HepatotoxicityTermSentence;
+import es.bsc.inb.limtox.model.Ocurrence;
 import es.bsc.inb.limtox.model.Reference;
 import es.bsc.inb.limtox.model.ReferenceValue;
+import es.bsc.inb.limtox.model.RelationRule;
 import es.bsc.inb.limtox.model.RelevantDocumentTopicInformation;
 import es.bsc.inb.limtox.model.RelevantSectionTopicInformation;
 import es.bsc.inb.limtox.model.RelevantSentenceTopicInformation;
@@ -47,6 +63,10 @@ class MainServiceImpl implements MainService {
 	static final Logger log = Logger.getLogger("taggingLog");
 	
 	Map<String,EntityType> entitiesType = new HashMap<String,EntityType>();
+	
+	List<CustomEntityNameTagger> customsTaggers = new ArrayList<CustomEntityNameTagger>();
+	@Autowired
+	CustomTaggerService customTaggerService;
 	
 	public void execute(String propertiesParametersPath) {
 		try {
@@ -131,6 +151,8 @@ class MainServiceImpl implements MainService {
 					propertiesParameters.getProperty("enableLTKB").equals("true");
 			
 			
+			readCustomTaggedEntitiesProperties(propertiesParameters);
+			
 			List<String> filesProcessed = readFilesProcessed(outputDirectoryPath); 
 		    BufferedWriter filesPrecessedWriter = new BufferedWriter(new FileWriter(outputDirectoryPath + File.separator + "list_files_processed.dat", true));
 		    
@@ -161,6 +183,12 @@ class MainServiceImpl implements MainService {
 				    	
 				    	genes(retrieveGenes, genesTaggedPathBlocks, genesTaggedPathSentences, file_to_classify, document, section);
 				    	
+				    	customTaggerService.execute(customsTaggers, file_to_classify, document, section);
+				    	
+				    	//patternTaggerService.execute(file_to_classify, document, section);
+				    	
+				    	findChemicalCompoundHepatotoxicityRelations(document, section);
+				    	
 				    	generateJSONFile(document, internalOutputPath + document.getDocumentId() + ".json");	
 				   
 				    }
@@ -189,6 +217,122 @@ class MainServiceImpl implements MainService {
 		}  catch (Exception e) {
 			log.error("Generic error in the classification step",e);
 		}
+	}
+
+
+	
+	/**
+	 * 
+	 * @param document
+	 * @param section
+	 */
+	private void findChemicalCompoundHepatotoxicityRelations(Document document, Section section) {
+		
+		Properties props = new Properties();
+		props.put("annotators", "tokenize, ssplit, pos, lemma");
+		//props.put("regexner.mapping", rulesPathOutput);
+		props.put("regexner.posmatchtype", "MATCH_ALL_TOKENS");
+		StanfordCoreNLP pipeline = new StanfordCoreNLP(props);
+	    
+		for (Sentence sentence : section.getSentences()) {
+			List<EntityInstanceFound> entitiesChemicalCompoundInstanceFound = sentence.findEntitiesInstanceFoundByType(Constants.CHEMICAL_ENTITY_TYPE);
+			List<EntityInstanceFound> entitiesHepatotoxicityInstanceFound = sentence.findEntitiesInstanceFoundByType("HEPATOTOXICITY");
+			for (EntityInstanceFound chemicalFound : entitiesChemicalCompoundInstanceFound) {
+				for (EntityInstanceFound endPointFound : entitiesHepatotoxicityInstanceFound) {
+					String text_between_relation = "";
+					String[] words_between = null;
+					if(chemicalFound.getStart()<endPointFound.getStart()) {
+						text_between_relation = sentence.getText().substring(chemicalFound.getStart(), endPointFound.getEnd());
+						//words_between =  sentence.getText().substring(chemicalFound.getEnd(), endPointFound.getStart()).split(" ");
+					}else {
+						text_between_relation = sentence.getText().substring(endPointFound.getStart(), chemicalFound.getEnd());
+						//words_between =  sentence.getText().substring(endPointFound.getEnd(), chemicalFound.getStart()).split(" ");
+					}
+					
+					words_between = text_between_relation.split(" ");
+					
+					//este seria el patron ...
+					log.debug(sentence.getText());
+					log.debug(words_between.length);
+					Annotation sentence_annotated= new Annotation(sentence.getText());
+					pipeline.annotate(sentence_annotated);
+					List<CoreLabel> tokens= sentence_annotated.get(TokensAnnotation.class);
+					int count_words = 0;
+					boolean count = false;
+					int init_pattern_offset = 0;
+					int end_pattern_offset = 0;
+					for (CoreLabel token: tokens){
+						if(count) {
+							count_words++;
+						}
+						String word = token.get(TextAnnotation.class);
+						String pos = token.get(PartOfSpeechAnnotation.class);
+						String ner = token.get(NamedEntityTagAnnotation.class);
+						String lemma = token.get(LemmaAnnotation.class);
+						
+						if(lemma.equals("induce")) {//aca por ejemplo induce es el lemma. falta ver porque pasa muchos chemical en la 
+							//misma sentencia, hay que armar un score en base a la co-ocurrencia, palabras en el medio y +++
+							log.debug("induce");
+						}
+						
+						if(!count && (token.endPosition()==chemicalFound.getEnd() || token.endPosition()==endPointFound.getEnd())) {
+							init_pattern_offset = token.beginPosition();
+							count = true;
+						}else if(count && token.endPosition()==chemicalFound.getEnd() || token.endPosition()==endPointFound.getEnd()) {
+							count = false;
+							end_pattern_offset = token.endPosition();
+						}
+						//System.out.println(word + "\t" + token.beginPosition() + "\t" + token.endPosition() + "\t" + pos + "\t" + ner + "\t" + lemma + "\t\n");
+					}
+					
+					
+					
+					
+					
+					//text_between_relation = 
+					
+					
+					//log.debug(sentence.getText());
+					
+					//HepatotoxicityTermChemicalCompoundSentence hepatotoxicityTermChemicalCompoundSentence = new HepatotoxicityTermChemicalCompoundSentence(chemicalCompoundSentence.getChemicalCompound(), hepatotoxicityTermSentence.getHepatotoxicityTerm(),1f, 1, sentence);
+//					sentence.getHepatotoxicityTermChemicalCompoundSentences().add(hepatotoxicityTermChemicalCompoundSentence);
+//						hepatotoxicityTermChemicalCompoundSentence.setRelationRule(RelationRule.COMENTION);
+//						for (ChemicalCompoundHepatotoxicityTermPattern pattern : dictionaryService.getChemicalCompoundHepatotoxicityTermPatterns()) {
+//							String pattern_text = pattern.getAdverse_pattern();
+//							pattern_text = pattern_text.replace("[substance]", chemicalCompoundSentence.getChemicalCompound().getName());
+//							pattern_text = pattern_text.replace("[adverse_effect]", hepatotoxicityTermSentence.getHepatotoxicityTerm().getOriginal_entry());
+//							List<Ocurrence> ocurrences = sentenceContains(pattern_text, sentence_text, Constants.ADVERSE_EFFECT);
+//							if(ocurrences!=null) {
+//								hepatotoxicityTermChemicalCompoundSentence.setRelationRule(RelationRule.ADVERSE_EFFECT);
+//								hepatotoxicityTermChemicalCompoundSentence.setPattern(pattern);
+//								break;
+//							}
+//						}
+//				log.debug("\t" + " " + "\t" + " " + "\t" +  chemicalCompoundSentence.getChemicalCompound().getName() + "\t" + hepatotoxicityTermSentence.getHepatotoxicityTerm().getOriginal_entry() + "\t" + " COMENTION ");
+//				//System.out.println("relation compound hepatotoxicityterm: " + chemicalCompoundSentence.getChemicalCompound().getName() + " and " + hepatotoxicityTermSentence.getHepatotoxicityTerm().getOriginal_entry());
+				}	
+			}	
+		}
+	}
+
+
+
+	/**
+	 * 
+	 * @param properties
+	 */
+	private void readCustomTaggedEntitiesProperties(Properties properties) {
+		for (int i = 1; i < 50; i++) {
+			String name = properties.getProperty("customtag."+i+".taggerName");
+			String blocksPath = properties.getProperty("customtag."+i+".taggedTermsPathBlocks");
+			String sentencesPath = properties.getProperty("customtag."+i+".taggedTermsPathSentences");
+			if(name!=null && blocksPath!=null && sentencesPath!=null) {
+				CustomEntityNameTagger customEntityNameTagger= new CustomEntityNameTagger(name, blocksPath, sentencesPath);
+				customsTaggers.add(customEntityNameTagger);
+			}
+		}
+		
+		
 	}
 
 
@@ -388,8 +532,8 @@ class MainServiceImpl implements MainService {
 			
 			EntityType entityType = entitiesType.get(Constants.GENES_ENTITY_TYPE);
 			//Fix put comlumns into text file output
-			ReferenceValue key_val = new ReferenceValue(ncbi_id, entityType.getReferenceByName("ncbi"));
-			ReferenceValue type_val = new ReferenceValue(type, entityType.getReferenceByName("type"));
+			ReferenceValue key_val = new ReferenceValue(entityType.getReferenceByName("ncbi").getName() , ncbi_id);
+			ReferenceValue type_val = new ReferenceValue(entityType.getReferenceByName("type").getName(), type);
 			List<ReferenceValue> referenceValues = new ArrayList<ReferenceValue>();
 			referenceValues.add(key_val);
 			referenceValues.add(type_val);
@@ -417,7 +561,7 @@ class MainServiceImpl implements MainService {
 			}
 			EntityType entityType = entitiesType.get(Constants.SPECIES_ENTITY_TYPE);
 			//Fix put comlumns into text file output
-			ReferenceValue key_val = new ReferenceValue(entity, entityType.getReferenceByName("species_ncbi"));
+			ReferenceValue key_val = new ReferenceValue(entityType.getReferenceByName("species_ncbi").getName(), entity);
 			List<ReferenceValue> referenceValues = new ArrayList<ReferenceValue>();
 			referenceValues.add(key_val);
 			EntityInstance entityInstance = new EntityInstance(text ,entityType, referenceValues);
@@ -441,7 +585,7 @@ class MainServiceImpl implements MainService {
 			String text = data[3];
 			if (data.length==5) {
 				//could be mesh or omim
-				ReferenceValue key_val = new ReferenceValue(data[4], entityType.getReferenceByName("database_relation_key"));
+				ReferenceValue key_val = new ReferenceValue(entityType.getReferenceByName("database_relation_key").getName(),data[4]);
 				referenceValues.add(key_val);
 			}
 			EntityInstance entityInstance = new EntityInstance(text ,entityType, referenceValues);
@@ -548,57 +692,57 @@ class MainServiceImpl implements MainService {
 			List<ReferenceValue> referenceValues = new ArrayList<ReferenceValue>();
 			//Fix put comlumns into text file output
 			if(!(chid==null || (chid!=null && (chid.trim().equals("null")|| chid.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(chid, entityType.getReferenceByName("chid"));
+				ReferenceValue v = new ReferenceValue(chid, entityType.getReferenceByName("chid").getName());
 				referenceValues.add(v);
 			}
 			
 			if(!(cheb==null || (cheb!=null && (cheb.trim().equals("null")|| cheb.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(cheb, entityType.getReferenceByName("cheb"));
+				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_CHEB, cheb);
 				referenceValues.add(v);
 			}
 			
 			if(!(cas==null || (cas!=null && (cas.trim().equals("null")|| cas.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(cas, entityType.getReferenceByName("cas"));
+				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_CAS, cas);
 				referenceValues.add(v);
 			}
 			
 			if(!(pubc==null || (pubc!=null && (pubc.trim().equals("null")|| pubc.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(pubc, entityType.getReferenceByName("pubc"));
+				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_PUBC, pubc);
 				referenceValues.add(v);
 			}
 			
 			if(!(pubs==null || (pubs!=null && (pubs.trim().equals("null")|| pubs.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(pubs, entityType.getReferenceByName("pubs"));
+				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_PUBS, pubs);
 				referenceValues.add(v);
 			}
 			
 			if(!(inch==null || (inch!=null && (inch.trim().equals("null")|| inch.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(inch, entityType.getReferenceByName("inch"));
+				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_INCH, inch);
 				referenceValues.add(v);
 			}
 			
 			if(!(drug==null || (drug!=null && (drug.trim().equals("null")|| drug.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(drug, entityType.getReferenceByName("drug"));
+				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_DRUG, drug);
 				referenceValues.add(v);
 			}
 			
 			if(!(hmbd==null || (hmbd!=null && (hmbd.trim().equals("null")|| hmbd.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(hmbd, entityType.getReferenceByName("hmbd"));
+				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_HMBD, hmbd);
 				referenceValues.add(v);
 			}
 			
 			if(!(kegg==null || (kegg!=null && (kegg.trim().equals("null")|| kegg.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(kegg, entityType.getReferenceByName("kegg"));
+				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_KEGG, kegg);
 				referenceValues.add(v);
 			}
 			
 			if(!(kegd==null || (kegd!=null && (kegd.trim().equals("null")|| kegd.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(kegd, entityType.getReferenceByName("kegd"));
+				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_KEGD, kegd);
 				referenceValues.add(v);
 			}
 			
 			if(!(mesh==null || (mesh!=null && (mesh.trim().equals("null")|| mesh.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(mesh, entityType.getReferenceByName("mesh"));
+				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_MESH, mesh);
 				referenceValues.add(v);
 			}
 			
