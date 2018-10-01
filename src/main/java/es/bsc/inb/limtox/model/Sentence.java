@@ -21,6 +21,8 @@ public class Sentence implements LimtoxEntity {
 	
 	private List<EntityInstanceFound> entitiesInstanceFound = new  ArrayList<EntityInstanceFound>();
 	
+	
+	
 	/*
 	private List<ChemicalCompoundSentence> chemicalCompoundSentences = new ArrayList<ChemicalCompoundSentence>();
 	
@@ -141,6 +143,15 @@ public class Sentence implements LimtoxEntity {
 	public void addEntityInstanceFound(EntityInstanceFound entityInstanceFound) {
 		entitiesInstanceFound.add(entityInstanceFound);
 		
+	}
+
+	public RelevantTopicInformation getRelevantTopicsInformationByName(String topicName) {
+		for (RelevantTopicInformation relevantTopicInformation : relevantTopicsInformation) {
+			if(relevantTopicInformation.getTopicName().equals(topicName)) {
+				return relevantTopicInformation;
+			}
+		}
+		return null;
 	}
 
 	

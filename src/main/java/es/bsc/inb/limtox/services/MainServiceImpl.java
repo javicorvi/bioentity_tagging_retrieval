@@ -18,6 +18,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -53,6 +55,7 @@ import es.bsc.inb.limtox.model.RelationRule;
 import es.bsc.inb.limtox.model.RelevantDocumentTopicInformation;
 import es.bsc.inb.limtox.model.RelevantSectionTopicInformation;
 import es.bsc.inb.limtox.model.RelevantSentenceTopicInformation;
+import es.bsc.inb.limtox.model.RelevantTopicInformation;
 import es.bsc.inb.limtox.model.Section;
 import es.bsc.inb.limtox.model.Sentence;
 import es.bsc.inb.limtox.util.Constants;
@@ -60,7 +63,7 @@ import es.bsc.inb.limtox.util.Constants;
 @Service
 class MainServiceImpl implements MainService {
 
-	static final Logger log = Logger.getLogger("taggingLog");
+	protected Log log = LogFactory.getLog(this.getClass());
 	
 	Map<String,EntityType> entitiesType = new HashMap<String,EntityType>();
 	
@@ -187,7 +190,7 @@ class MainServiceImpl implements MainService {
 				    	
 				    	//patternTaggerService.execute(file_to_classify, document, section);
 				    	
-				    	findChemicalCompoundHepatotoxicityRelations(document, section);
+				    	findChemicalCompoundEndPointsRelations(document, section, "hepatotoxicity");
 				    	
 				    	generateJSONFile(document, internalOutputPath + document.getDocumentId() + ".json");	
 				   
@@ -226,92 +229,75 @@ class MainServiceImpl implements MainService {
 	 * @param document
 	 * @param section
 	 */
-	private void findChemicalCompoundHepatotoxicityRelations(Document document, Section section) {
-		
+	private void findChemicalCompoundEndPointsRelations(Document document, Section section, String topicName) {
 		Properties props = new Properties();
 		props.put("annotators", "tokenize, ssplit, pos, lemma");
 		//props.put("regexner.mapping", rulesPathOutput);
 		props.put("regexner.posmatchtype", "MATCH_ALL_TOKENS");
 		StanfordCoreNLP pipeline = new StanfordCoreNLP(props);
-	    
-		for (Sentence sentence : section.getSentences()) {
-			List<EntityInstanceFound> entitiesChemicalCompoundInstanceFound = sentence.findEntitiesInstanceFoundByType(Constants.CHEMICAL_ENTITY_TYPE);
-			List<EntityInstanceFound> entitiesHepatotoxicityInstanceFound = sentence.findEntitiesInstanceFoundByType("HEPATOTOXICITY");
-			for (EntityInstanceFound chemicalFound : entitiesChemicalCompoundInstanceFound) {
+	    for (Sentence sentence : section.getSentences()) {
+	    	RelevantTopicInformation relevantTopiInformation = sentence.getRelevantTopicsInformationByName(topicName);
+	    	Integer co_ocurrences_score = 0 ;
+	    	List<EntityInstanceFound> entitiesChemicalCompoundInstanceFound = sentence.findEntitiesInstanceFoundByType(Constants.CHEMICAL_ENTITY_TYPE);
+			List<EntityInstanceFound> entitiesHepatotoxicityInstanceFound = sentence.findEntitiesInstanceFoundByType(topicName.toUpperCase());
+			relevantTopiInformation.setNumberOfTermsScore(entitiesHepatotoxicityInstanceFound.size());
+	    	for (EntityInstanceFound chemicalFound : entitiesChemicalCompoundInstanceFound) {
 				for (EntityInstanceFound endPointFound : entitiesHepatotoxicityInstanceFound) {
-					String text_between_relation = "";
-					String[] words_between = null;
-					if(chemicalFound.getStart()<endPointFound.getStart()) {
-						text_between_relation = sentence.getText().substring(chemicalFound.getStart(), endPointFound.getEnd());
-						//words_between =  sentence.getText().substring(chemicalFound.getEnd(), endPointFound.getStart()).split(" ");
-					}else {
-						text_between_relation = sentence.getText().substring(endPointFound.getStart(), chemicalFound.getEnd());
-						//words_between =  sentence.getText().substring(endPointFound.getEnd(), chemicalFound.getStart()).split(" ");
-					}
-					
-					words_between = text_between_relation.split(" ");
-					
-					//este seria el patron ...
-					log.debug(sentence.getText());
-					log.debug(words_between.length);
-					Annotation sentence_annotated= new Annotation(sentence.getText());
-					pipeline.annotate(sentence_annotated);
-					List<CoreLabel> tokens= sentence_annotated.get(TokensAnnotation.class);
-					int count_words = 0;
-					boolean count = false;
-					int init_pattern_offset = 0;
-					int end_pattern_offset = 0;
-					for (CoreLabel token: tokens){
-						if(count) {
-							count_words++;
+					try {
+						co_ocurrences_score ++;
+						String text_between_relation = "";
+						String[] words_between = null;
+						if(chemicalFound.getStart()<endPointFound.getStart()) {
+							text_between_relation = sentence.getText().substring(chemicalFound.getStart(), endPointFound.getEnd());
+							//words_between =  sentence.getText().substring(chemicalFound.getEnd(), endPointFound.getStart()).split(" ");
+						}else {
+							text_between_relation = sentence.getText().substring(endPointFound.getStart(), chemicalFound.getEnd());
+							//words_between =  sentence.getText().substring(endPointFound.getEnd(), chemicalFound.getStart()).split(" ");
 						}
-						String word = token.get(TextAnnotation.class);
-						String pos = token.get(PartOfSpeechAnnotation.class);
-						String ner = token.get(NamedEntityTagAnnotation.class);
-						String lemma = token.get(LemmaAnnotation.class);
+						words_between = text_between_relation.split(" ");
+						//este seria el patron ...
+						log.debug(sentence.getText());
+						log.debug(words_between.length);
+						Annotation sentence_annotated= new Annotation(sentence.getText());
+						pipeline.annotate(sentence_annotated);
+						List<CoreLabel> tokens= sentence_annotated.get(TokensAnnotation.class);
 						
-						if(lemma.equals("induce")) {//aca por ejemplo induce es el lemma. falta ver porque pasa muchos chemical en la 
-							//misma sentencia, hay que armar un score en base a la co-ocurrencia, palabras en el medio y +++
-							log.debug("induce");
+						boolean count = false;
+						int init_pattern_offset = 0;
+						int end_pattern_offset = 0;
+						for (CoreLabel token: tokens){
+							String word = token.get(TextAnnotation.class);
+							String pos = token.get(PartOfSpeechAnnotation.class);
+							String ner = token.get(NamedEntityTagAnnotation.class);
+							String lemma = token.get(LemmaAnnotation.class);
+							if(lemma.equals("induce") || lemma.equals("increase")) {//aca por ejemplo induce es el lemma. falta ver porque pasa muchos chemical en la 
+								//misma sentencia, hay que armar un score en base a la co-ocurrencia, palabras en el medio y +++
+								log.debug("induce increase");
+							}
+							/*if(!count && (token.endPosition()==chemicalFound.getEnd() || token.endPosition()==endPointFound.getEnd())) {
+								init_pattern_offset = token.beginPosition();
+								count = true;
+							}else if(count && token.endPosition()==chemicalFound.getEnd() || token.endPosition()==endPointFound.getEnd()) {
+								count = false;
+								end_pattern_offset = token.endPosition();
+							}*/
+							//System.out.println(word + "\t" + token.beginPosition() + "\t" + token.endPosition() + "\t" + pos + "\t" + ner + "\t" + lemma + "\t\n");
 						}
 						
-						if(!count && (token.endPosition()==chemicalFound.getEnd() || token.endPosition()==endPointFound.getEnd())) {
-							init_pattern_offset = token.beginPosition();
-							count = true;
-						}else if(count && token.endPosition()==chemicalFound.getEnd() || token.endPosition()==endPointFound.getEnd()) {
-							count = false;
-							end_pattern_offset = token.endPosition();
-						}
-						//System.out.println(word + "\t" + token.beginPosition() + "\t" + token.endPosition() + "\t" + pos + "\t" + ner + "\t" + lemma + "\t\n");
+						log.debug(sentence.getText().substring(init_pattern_offset, end_pattern_offset));
+						
+					}catch(Exception e) {
+						log.error("Error with relation generation " ,e );
 					}
-					
-					
-					
-					
-					
-					//text_between_relation = 
-					
-					
-					//log.debug(sentence.getText());
-					
-					//HepatotoxicityTermChemicalCompoundSentence hepatotoxicityTermChemicalCompoundSentence = new HepatotoxicityTermChemicalCompoundSentence(chemicalCompoundSentence.getChemicalCompound(), hepatotoxicityTermSentence.getHepatotoxicityTerm(),1f, 1, sentence);
-//					sentence.getHepatotoxicityTermChemicalCompoundSentences().add(hepatotoxicityTermChemicalCompoundSentence);
-//						hepatotoxicityTermChemicalCompoundSentence.setRelationRule(RelationRule.COMENTION);
-//						for (ChemicalCompoundHepatotoxicityTermPattern pattern : dictionaryService.getChemicalCompoundHepatotoxicityTermPatterns()) {
-//							String pattern_text = pattern.getAdverse_pattern();
-//							pattern_text = pattern_text.replace("[substance]", chemicalCompoundSentence.getChemicalCompound().getName());
-//							pattern_text = pattern_text.replace("[adverse_effect]", hepatotoxicityTermSentence.getHepatotoxicityTerm().getOriginal_entry());
-//							List<Ocurrence> ocurrences = sentenceContains(pattern_text, sentence_text, Constants.ADVERSE_EFFECT);
-//							if(ocurrences!=null) {
-//								hepatotoxicityTermChemicalCompoundSentence.setRelationRule(RelationRule.ADVERSE_EFFECT);
-//								hepatotoxicityTermChemicalCompoundSentence.setPattern(pattern);
-//								break;
-//							}
-//						}
-//				log.debug("\t" + " " + "\t" + " " + "\t" +  chemicalCompoundSentence.getChemicalCompound().getName() + "\t" + hepatotoxicityTermSentence.getHepatotoxicityTerm().getOriginal_entry() + "\t" + " COMENTION ");
-//				//System.out.println("relation compound hepatotoxicityterm: " + chemicalCompoundSentence.getChemicalCompound().getName() + " and " + hepatotoxicityTermSentence.getHepatotoxicityTerm().getOriginal_entry());
 				}	
 			}	
+			relevantTopiInformation.setCoOcurrenceScore(co_ocurrences_score);
+			log.debug(sentence.getText());
+			log.debug("End Point : " + relevantTopiInformation.getTopicName());
+			log.debug("Classifier score : " + relevantTopiInformation.getClassifierScore());
+			log.debug("End Point Terms : " +relevantTopiInformation.getNumberOfTermsScore());
+			log.debug("End Point Terms co-ocurrences with compounds: " + relevantTopiInformation.getCoOcurrenceScore());
+			//log.debug("End Point patterns : " + relevantTopiInformation.getCoOcurrenceScore());
 		}
 	}
 

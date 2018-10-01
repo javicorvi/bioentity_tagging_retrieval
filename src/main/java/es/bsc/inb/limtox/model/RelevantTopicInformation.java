@@ -9,11 +9,15 @@ public class RelevantTopicInformation {
 	
 	private String topicName;
 	
-	private Double score;
+	private Double classifierScore;
+	
+	private Integer numberOfTermsScore;
+	
+	private Integer coOcurrenceScore;
 
-	public RelevantTopicInformation(String topicName, Double score) {
+	public RelevantTopicInformation(String topicName, Double classifierScore) {
 		this.topicName=topicName;
-		this.score=score;
+		this.classifierScore=classifierScore;
 	}
 
 	public String getTopicName() {
@@ -24,13 +28,32 @@ public class RelevantTopicInformation {
 		this.topicName = topicName;
 	}
 
-	public Double getScore() {
-		return score;
+	public Double getClassifierScore() {
+		return classifierScore;
 	}
 
-	public void setScore(Double score) {
-		this.score = score;
+	public void setClassifierScore(Double classifierScore) {
+		this.classifierScore = classifierScore;
 	}
 
+	
+
+	public Integer getNumberOfTermsScore() {
+		return numberOfTermsScore;
+	}
+
+	public void setNumberOfTermsScore(Integer numberOfTermsScore) {
+		this.numberOfTermsScore = numberOfTermsScore;
+	}
+
+	public Integer getCoOcurrenceScore() {
+		return coOcurrenceScore;
+	}
+
+	public void setCoOcurrenceScore(Integer coOcurrenceScore) {
+		this.coOcurrenceScore = coOcurrenceScore;
+	}
+
+	
 	
 }
