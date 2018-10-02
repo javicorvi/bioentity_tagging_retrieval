@@ -16,4 +16,11 @@ public abstract class Constants {
 	public static final String CHEMICAL_KEGG = "kegg";
 	public static final String CHEMICAL_KEGD = "kegd";
 	public static final String CHEMICAL_MESH = "mesh";
+	public static final String DEFAULT_ASSOCIATION_RULE = "co_ocurrence";
+	
+	public static final String SPECIES_TAGGER = "linnaeus";
+	public static final String DISEASES_TAGGER = "dnorm";
+	public static final String GENES_TAGGER = "gnormplus";
+	public static final String CHEMICALCOMPOUND_TAGGER = "chemspot";
+	
 }

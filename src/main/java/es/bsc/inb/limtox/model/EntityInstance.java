@@ -12,16 +12,20 @@ public class EntityInstance {
 	
 	private String entityTypeName;
 	
-	public EntityInstance(String value, EntityType entityType, List<ReferenceValue> referenceValues) {
+	private String taggerName;
+	
+	public EntityInstance(String taggerName, String value, EntityType entityType, List<ReferenceValue> referenceValues) {
 		super();
+		this.taggerName = taggerName;
 		this.value = value;
 		//this.entityType = entityType;
 		this.entityTypeName = entityType.getName();
 		this.referenceValues = referenceValues;
 	}
 
-	public EntityInstance(String value, String entityType, List<ReferenceValue> referenceValues) {
+	public EntityInstance(String taggerName, String value, String entityType, List<ReferenceValue> referenceValues) {
 		super();
+		this.taggerName = taggerName;
 		this.value = value;
 		//this.entityType = entityType;
 		this.entityTypeName = entityType;
@@ -58,6 +62,14 @@ public class EntityInstance {
 
 	public void setEntityTypeName(String entityTypeName) {
 		this.entityTypeName = entityTypeName;
+	}
+
+	public String getTaggerName() {
+		return taggerName;
+	}
+
+	public void setTaggerName(String taggerName) {
+		this.taggerName = taggerName;
 	}
 	
 	

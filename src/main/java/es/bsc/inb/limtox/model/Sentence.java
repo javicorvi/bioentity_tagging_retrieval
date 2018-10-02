@@ -21,7 +21,7 @@ public class Sentence implements LimtoxEntity {
 	
 	private List<EntityInstanceFound> entitiesInstanceFound = new  ArrayList<EntityInstanceFound>();
 	
-	
+	private List<EntityAssociationSentence> entitiesAssociationsInstanceFound = new  ArrayList<EntityAssociationSentence>();
 	
 	/*
 	private List<ChemicalCompoundSentence> chemicalCompoundSentences = new ArrayList<ChemicalCompoundSentence>();
@@ -154,6 +154,21 @@ public class Sentence implements LimtoxEntity {
 		return null;
 	}
 
+	public List<EntityAssociationSentence> getEntitiesAssociationsInstanceFound() {
+		return entitiesAssociationsInstanceFound;
+	}
+
+	public void setEntitiesAssociationsInstanceFound(List<EntityAssociationSentence> entitiesAssociationsInstanceFound) {
+		this.entitiesAssociationsInstanceFound = entitiesAssociationsInstanceFound;
+	}
+
+	public void addEntityAssociationInstanceFound(EntityAssociationSentence entityAssociationSentence) {
+		entitiesAssociationsInstanceFound.add(entityAssociationSentence);
+		
+	}
+
+	
+	
 	
 	
 	

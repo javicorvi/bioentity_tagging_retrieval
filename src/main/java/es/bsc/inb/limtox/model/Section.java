@@ -98,7 +98,14 @@ public class Section implements LimtoxEntity {
 		
 	}
 	
-	
+	public RelevantTopicInformation getRelevantTopicsInformationByName(String topicName) {
+		for (RelevantTopicInformation relevantTopicInformation : relevantTopicsInformation) {
+			if(relevantTopicInformation.getTopicName().equals(topicName)) {
+				return relevantTopicInformation;
+			}
+		}
+		return null;
+	}
 	
 	
 }

@@ -1,5 +1,8 @@
 package es.bsc.inb.limtox.model;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class CustomEntityNameTagger {
 
 	private String taggerName;
@@ -8,10 +11,9 @@ public class CustomEntityNameTagger {
 	
 	private String taggerSentencePath;
 
-	
+	private List<EntityAssociation> associations = new ArrayList<EntityAssociation>();
 	
 	public CustomEntityNameTagger(String taggerName, String taggerBlocksPath, String taggerSentencePath) {
-		super();
 		this.taggerName = taggerName;
 		this.taggerBlocksPath = taggerBlocksPath;
 		this.taggerSentencePath = taggerSentencePath;
@@ -40,6 +42,19 @@ public class CustomEntityNameTagger {
 	public void setTaggerSentencePath(String taggerSentencePath) {
 		this.taggerSentencePath = taggerSentencePath;
 	}
+
+	public List<EntityAssociation> getAssociations() {
+		return associations;
+	}
+
+	public void setAssociations(List<EntityAssociation> associations) {
+		this.associations = associations;
+	}
+
+	public void addEntityAssociation(EntityAssociation entityAssociation) {
+		associations.add(entityAssociation);
+	}
+	
 	
 	
 	

@@ -14,11 +14,10 @@ import es.bsc.inb.limtox.model.CustomEntityNameTagger;
 import es.bsc.inb.limtox.model.Document;
 import es.bsc.inb.limtox.model.EntityInstance;
 import es.bsc.inb.limtox.model.EntityInstanceFound;
-import es.bsc.inb.limtox.model.EntityType;
 import es.bsc.inb.limtox.model.ReferenceValue;
+import es.bsc.inb.limtox.model.RelevantTopicInformation;
 import es.bsc.inb.limtox.model.Section;
 import es.bsc.inb.limtox.model.Sentence;
-import es.bsc.inb.limtox.util.Constants;
 @Service
 public class CustomTaggerServiceImpl implements CustomTaggerService {
 	
@@ -31,37 +30,28 @@ public class CustomTaggerServiceImpl implements CustomTaggerService {
 		
 	}
 	
+	/**
+	 * Retrieve the information of the tagger
+	 * @param customEntityNameTagger
+	 * @param file_to_classify
+	 * @param document
+	 * @param section
+	 */
 	private void retrieveTaggerInfo(CustomEntityNameTagger customEntityNameTagger, File file_to_classify, Document document, Section section) {
-		if (Files.isRegularFile(Paths.get(customEntityNameTagger.getTaggerBlocksPath() + File.separator + file_to_classify.getName()))) {
-			String[] columnNames=null;
-			boolean column=true;
-			for (String line : ObjectBank.getLineIterator(customEntityNameTagger.getTaggerBlocksPath() + File.separator + file_to_classify.getName(), "utf-8")) {
-				if(column) {
-					columnNames = line.split("\t");
-					column=false;
-				}else {
-					String[] data = line.split("\t");
-			    	if(data[0]!=null && data[0].equals(document.getDocumentId())) {
-			    		log.info("Document " + document.getDocumentId() + " \n " + line);
-			    		EntityInstanceFound entityInstanceFound = retrieveTag(data, columnNames); 
-			    		if(entityInstanceFound!=null) {
-			    			section.addEntityInstanceFound(entityInstanceFound);
-			    		}else {
-			    			log.error("Error retrieving tagger info for document " + document.getDocumentId() + " in file: " + file_to_classify.getName() );
-			    			log.error("The tagged line is" + data);
-			    		}
-			    		
-			    	}
-				}
-				
-		    }
-		} else {
-			log.error("File not found " + customEntityNameTagger.getTaggerBlocksPath() + File.separator + file_to_classify.getName());
-		}
-		
-		//sentences
-		for (Sentence sentence : section.getSentences()) {
-			if (Files.isRegularFile(Paths.get(customEntityNameTagger.getTaggerSentencePath() + File.separator + file_to_classify.getName()))) {
+		retrieveTaggerInfoFromSection(customEntityNameTagger, file_to_classify, document, section);
+		retrieveTaggerInfoFromSentence(customEntityNameTagger, file_to_classify, section);
+	}
+	
+	/**
+	 * Retrieve the tagger information from the sentences
+	 * @param customEntityNameTagger
+	 * @param file_to_classify
+	 * @param section
+	 */
+	private void retrieveTaggerInfoFromSentence(CustomEntityNameTagger customEntityNameTagger, File file_to_classify, Section section) {
+		if (Files.isRegularFile(Paths.get(customEntityNameTagger.getTaggerSentencePath() + File.separator + file_to_classify.getName()))) {
+			for (Sentence sentence : section.getSentences()) {
+				int numbersOfTerms = 0;
 				String[] columnNames=null;
 				boolean column=true;
 				for (String line : ObjectBank.getLineIterator(customEntityNameTagger.getTaggerSentencePath() + File.separator + file_to_classify.getName(), "utf-8")) {
@@ -72,8 +62,9 @@ public class CustomTaggerServiceImpl implements CustomTaggerService {
 						String[] data = line.split("\t");
 						if(data[0]!=null && data[0].equals(sentence.getSentenceId())) {
 				    		log.info("Sentence " + sentence.getSentenceId() + " \n " + line);
-				    		EntityInstanceFound entityInstanceFound = retrieveTag(data, columnNames); 
+				    		EntityInstanceFound entityInstanceFound = retrieveTag(customEntityNameTagger.getTaggerName(), data, columnNames); 
 				    		if(entityInstanceFound!=null) {
+				    			numbersOfTerms++;
 				    			sentence.addEntityInstanceFound(entityInstanceFound);
 				    		}else {
 				    			log.error("Error retrieving diseases tagged for sentence " + sentence.getSentenceId() + " in file: " + file_to_classify.getName() );
@@ -82,14 +73,64 @@ public class CustomTaggerServiceImpl implements CustomTaggerService {
 				    	}
 					}
 				}
-			} else {
-				log.error("File not found " + customEntityNameTagger.getTaggerSentencePath() + File.separator + file_to_classify.getName());
+				//if the tagger is a relevant topip we set the term numer score for the sentence
+				RelevantTopicInformation relevantTopipInformation = sentence.getRelevantTopicsInformationByName(customEntityNameTagger.getTaggerName());
+				if(relevantTopipInformation!=null) {
+					relevantTopipInformation.setNumberOfTermsScore(numbersOfTerms);
+				}
 			}
+				
+		} else {
+			log.error("File not found " + customEntityNameTagger.getTaggerSentencePath() + File.separator + file_to_classify.getName());
 		}
-		
 	}
-
-	private EntityInstanceFound retrieveTag(String[] data, String[] columnNames) {
+	/**
+	 * Retrieve tagger information from section
+	 * @param customEntityNameTagger
+	 * @param file_to_classify
+	 * @param document
+	 * @param section
+	 */
+	private void retrieveTaggerInfoFromSection(CustomEntityNameTagger customEntityNameTagger, File file_to_classify, Document document, Section section) {
+		if (Files.isRegularFile(Paths.get(customEntityNameTagger.getTaggerBlocksPath() + File.separator + file_to_classify.getName()))) {
+			int numbersOfTerms = 0;
+			String[] columnNames=null;
+			boolean column=true;
+			for (String line : ObjectBank.getLineIterator(customEntityNameTagger.getTaggerBlocksPath() + File.separator + file_to_classify.getName(), "utf-8")) {
+				if(column) {
+					columnNames = line.split("\t");
+					column=false;
+				}else {
+					String[] data = line.split("\t");
+			    	if(data[0]!=null && data[0].equals(document.getDocumentId())) {
+			    		log.info("Document " + document.getDocumentId() + " \n " + line);
+			    		EntityInstanceFound entityInstanceFound = retrieveTag(customEntityNameTagger.getTaggerName(),data, columnNames); 
+			    		if(entityInstanceFound!=null) {
+			    			numbersOfTerms++;
+			    			section.addEntityInstanceFound(entityInstanceFound);
+			    		}else {
+			    			log.error("Error retrieving tagger info for document " + document.getDocumentId() + " in file: " + file_to_classify.getName() );
+			    			log.error("The tagged line is" + data);
+			    		}
+			    	}
+				}
+			}
+			//if the tagger is a relevant topic we set the term number score for the section
+			RelevantTopicInformation relevantTopipInformation = section.getRelevantTopicsInformationByName(customEntityNameTagger.getTaggerName());
+			if(relevantTopipInformation!=null) {
+				relevantTopipInformation.setNumberOfTermsScore(numbersOfTerms);
+			}
+		} else {
+			log.error("File not found " + customEntityNameTagger.getTaggerBlocksPath() + File.separator + file_to_classify.getName());
+		}
+	}
+	/**
+	 * Retrieve tag information form tagger line
+	 * @param data
+	 * @param columnNames
+	 * @return
+	 */
+	private EntityInstanceFound retrieveTag(String taggerName, String[] data, String[] columnNames) {
 		try {
 			String id = data[0];
 			Integer start = new Integer(data[1]);
@@ -105,7 +146,7 @@ public class CustomTaggerServiceImpl implements CustomTaggerService {
 					referenceValues.add(key_val);
 				}
 			}
-			EntityInstance entityInstance = new EntityInstance(text ,entityType, referenceValues);
+			EntityInstance entityInstance = new EntityInstance(taggerName, text ,entityType, referenceValues);
 			EntityInstanceFound found = new EntityInstanceFound(start, end, entityInstance, "trivial", "trivial");
 			return found;
 		} catch(Exception e) {

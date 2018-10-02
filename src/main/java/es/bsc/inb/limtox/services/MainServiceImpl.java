@@ -17,10 +17,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Stream;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -29,29 +29,26 @@ import com.fasterxml.jackson.core.JsonGenerationException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import edu.stanford.nlp.ling.CoreLabel;
 import edu.stanford.nlp.ling.CoreAnnotations.LemmaAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.NamedEntityTagAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.PartOfSpeechAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.TextAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.TokensAnnotation;
+import edu.stanford.nlp.ling.CoreLabel;
 import edu.stanford.nlp.objectbank.ObjectBank;
 import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
-import es.bsc.inb.limtox.model.ChemicalCompoundHepatotoxicityTermPattern;
-import es.bsc.inb.limtox.model.ChemicalCompoundSentence;
 import es.bsc.inb.limtox.model.CustomEntityNameTagger;
 import es.bsc.inb.limtox.model.Document;
 import es.bsc.inb.limtox.model.DocumentSource;
+import es.bsc.inb.limtox.model.EntityAssociation;
+import es.bsc.inb.limtox.model.EntityAssociationSentence;
 import es.bsc.inb.limtox.model.EntityInstance;
 import es.bsc.inb.limtox.model.EntityInstanceFound;
 import es.bsc.inb.limtox.model.EntityType;
-import es.bsc.inb.limtox.model.HepatotoxicityTermChemicalCompoundSentence;
-import es.bsc.inb.limtox.model.HepatotoxicityTermSentence;
-import es.bsc.inb.limtox.model.Ocurrence;
+import es.bsc.inb.limtox.model.PatternAssociation;
 import es.bsc.inb.limtox.model.Reference;
 import es.bsc.inb.limtox.model.ReferenceValue;
-import es.bsc.inb.limtox.model.RelationRule;
 import es.bsc.inb.limtox.model.RelevantDocumentTopicInformation;
 import es.bsc.inb.limtox.model.RelevantSectionTopicInformation;
 import es.bsc.inb.limtox.model.RelevantSentenceTopicInformation;
@@ -70,6 +67,18 @@ class MainServiceImpl implements MainService {
 	List<CustomEntityNameTagger> customsTaggers = new ArrayList<CustomEntityNameTagger>();
 	@Autowired
 	CustomTaggerService customTaggerService;
+	
+	@Autowired
+	ChemicalCompoundService chemicalCompoundService;
+	
+	@Autowired
+	SpecieService specieService;
+	
+	@Autowired
+	DiseaseService diseaseService;
+	
+	@Autowired
+	GeneService geneService;
 	
 	public void execute(String propertiesParametersPath) {
 		try {
@@ -153,7 +162,6 @@ class MainServiceImpl implements MainService {
 			Boolean enableLTKB = propertiesParameters.getProperty("enableLTKB")!=null & 
 					propertiesParameters.getProperty("enableLTKB").equals("true");
 			
-			
 			readCustomTaggedEntitiesProperties(propertiesParameters);
 			
 			List<String> filesProcessed = readFilesProcessed(outputDirectoryPath); 
@@ -176,42 +184,25 @@ class MainServiceImpl implements MainService {
 				    }
 				    
 				    for (Document document : documents_map.values()) {
+				    	
 				    	Section section = document.getSections().get(0);
 				    	
-				    	chemicalCompounds(retrieveChemicalCompounds, chemicalCompoundsTaggedPathBlocks, chemicalCompoundsTaggedPathSentences, file_to_classify, document, section);	
+				    	chemicalCompoundService.execute(retrieveChemicalCompounds, chemicalCompoundsTaggedPathBlocks, chemicalCompoundsTaggedPathSentences, file_to_classify, document, section, entitiesType);	
 				    	
-				    	species(retrieveSpecies, speciesTaggedPathBlocks, speciesTaggedPathSentences, file_to_classify, document, section);	
+				    	specieService.execute(retrieveSpecies, speciesTaggedPathBlocks, speciesTaggedPathSentences, file_to_classify, document, section, entitiesType);	
 				    	
-				    	diseases(retrieveDiseases, diseasesTaggedPathBlocks, diseasesTaggedPathSentences, file_to_classify, document, section);	
+				    	diseaseService.execute(retrieveDiseases, diseasesTaggedPathBlocks, diseasesTaggedPathSentences, file_to_classify, document, section, entitiesType);	
 				    	
-				    	genes(retrieveGenes, genesTaggedPathBlocks, genesTaggedPathSentences, file_to_classify, document, section);
+				    	geneService.execute(retrieveGenes, genesTaggedPathBlocks, genesTaggedPathSentences, file_to_classify, document, section, entitiesType);	
 				    	
 				    	customTaggerService.execute(customsTaggers, file_to_classify, document, section);
 				    	
-				    	//patternTaggerService.execute(file_to_classify, document, section);
-				    	
-				    	findChemicalCompoundEndPointsRelations(document, section, "hepatotoxicity");
+				    	entityAssociations(customsTaggers, document, section);
 				    	
 				    	generateJSONFile(document, internalOutputPath + document.getDocumentId() + ".json");	
 				   
 				    }
-				    /*for (String line : ObjectBank.getLineIterator(file_to_classify.getAbsolutePath(), "utf-8")) {
-						try {
-							String[] data_document = line.split("\t");
-							Double score = new Double(data_document[0]);
-							String relevant = data_document[1];
-							String id = data_document[2];
-							String title = data_document[3];
-							String text_block = data_document[4];
-							log.info(line);
-							//process(id, text, outPutFile, file_to_classify.getName());
-						}  catch (Exception e2) {
-							log.error("Error processing the document line " + line + " belongs to the file: " +  fileName,e2);
-						}
-					}*/
-				    
 				    log.info("Processed file " + file_to_classify.getName());
-				    
 				    filesPrecessedWriter.write(file_to_classify.getName()+"\n");
 					filesPrecessedWriter.flush();
 				}
@@ -222,86 +213,95 @@ class MainServiceImpl implements MainService {
 		}
 	}
 
-
-	
 	/**
 	 * 
 	 * @param document
 	 * @param section
 	 */
-	private void findChemicalCompoundEndPointsRelations(Document document, Section section, String topicName) {
+	private void entityAssociations(List<CustomEntityNameTagger> customsTaggers, Document document, Section section) {
+		log.debug("Analize the entityAssociations for document id : " + document.getDocumentId());
 		Properties props = new Properties();
 		props.put("annotators", "tokenize, ssplit, pos, lemma");
 		//props.put("regexner.mapping", rulesPathOutput);
 		props.put("regexner.posmatchtype", "MATCH_ALL_TOKENS");
 		StanfordCoreNLP pipeline = new StanfordCoreNLP(props);
-	    for (Sentence sentence : section.getSentences()) {
-	    	RelevantTopicInformation relevantTopiInformation = sentence.getRelevantTopicsInformationByName(topicName);
-	    	Integer co_ocurrences_score = 0 ;
-	    	List<EntityInstanceFound> entitiesChemicalCompoundInstanceFound = sentence.findEntitiesInstanceFoundByType(Constants.CHEMICAL_ENTITY_TYPE);
-			List<EntityInstanceFound> entitiesHepatotoxicityInstanceFound = sentence.findEntitiesInstanceFoundByType(topicName.toUpperCase());
-			relevantTopiInformation.setNumberOfTermsScore(entitiesHepatotoxicityInstanceFound.size());
-	    	for (EntityInstanceFound chemicalFound : entitiesChemicalCompoundInstanceFound) {
-				for (EntityInstanceFound endPointFound : entitiesHepatotoxicityInstanceFound) {
-					try {
-						co_ocurrences_score ++;
-						String text_between_relation = "";
-						String[] words_between = null;
-						if(chemicalFound.getStart()<endPointFound.getStart()) {
-							text_between_relation = sentence.getText().substring(chemicalFound.getStart(), endPointFound.getEnd());
-							//words_between =  sentence.getText().substring(chemicalFound.getEnd(), endPointFound.getStart()).split(" ");
-						}else {
-							text_between_relation = sentence.getText().substring(endPointFound.getStart(), chemicalFound.getEnd());
-							//words_between =  sentence.getText().substring(endPointFound.getEnd(), chemicalFound.getStart()).split(" ");
+	    //for every custom tag
+		for (CustomEntityNameTagger customEntityNameTagger : customsTaggers) {
+			log.debug("Custom entity tagger to process : " + customEntityNameTagger.getTaggerName());
+			for (Sentence sentence : section.getSentences()) {
+				log.debug("Sentence Id: " + sentence.getSentenceId());
+				log.debug("Sentence Text : " + sentence.getText());
+				RelevantTopicInformation relevantTopiInformation = sentence.getRelevantTopicsInformationByName(customEntityNameTagger.getTaggerName());
+				if(relevantTopiInformation!=null) {
+					List<EntityInstanceFound> entitiesHepatotoxicityInstanceFound = sentence.findEntitiesInstanceFoundByType(customEntityNameTagger.getTaggerName().toUpperCase());//fix upper 	case
+					for (EntityAssociation entityAssociation : customEntityNameTagger.getAssociations()) {
+						log.debug(" Entity Association with : " + entityAssociation.getTopicName());
+						Integer co_ocurrences_score = 0;
+						Integer patterns_score = 0;
+				    	List<EntityInstanceFound> entitiesAssociatinoInstanceFound = sentence.findEntitiesInstanceFoundByType(entityAssociation.getTopicName());
+				    	for (EntityInstanceFound entityAssociationInstance : entitiesAssociatinoInstanceFound) {
+							for (EntityInstanceFound endPointFound : entitiesHepatotoxicityInstanceFound) {
+								try {
+									if(entityAssociation.getTopicName().equals("species")) {
+										log.debug(" Entity Association with : " + entityAssociation.getTopicName());
+									}
+									if(entityAssociation.getTopicName().equals("diseases")) {
+										log.debug(" Entity Association with : " + entityAssociation.getTopicName());
+									}
+									if(entityAssociation.getTopicName().equals("genes")) {
+										log.debug(" Entity Association with : " + entityAssociation.getTopicName());
+									}
+									String text_between_relation = "";
+									if(entityAssociationInstance.getStart()<endPointFound.getStart()) {
+										text_between_relation = sentence.getText().substring(entityAssociationInstance.getStart(), endPointFound.getEnd());
+									}else {
+										text_between_relation = sentence.getText().substring(endPointFound.getStart(), entityAssociationInstance.getEnd());
+									}
+									String[] words_between = text_between_relation.split(" ");
+									Annotation sentence_annotated= new Annotation(sentence.getText());
+									pipeline.annotate(sentence_annotated);
+									List<CoreLabel> tokens= sentence_annotated.get(TokensAnnotation.class);
+									Boolean patter_presente = false;
+									for (CoreLabel token: tokens){
+										String word = token.get(TextAnnotation.class);
+										String pos = token.get(PartOfSpeechAnnotation.class);
+										String ner = token.get(NamedEntityTagAnnotation.class);
+										String lemma = token.get(LemmaAnnotation.class);
+										//generate patterns relations
+										for (PatternAssociation patternAssociation : entityAssociation.getPatternAssociations()) {
+											if(Stream.of(patternAssociation.getLemmaKeywords()).anyMatch(x -> x.equals(lemma))) { 
+												patterns_score ++;
+												EntityAssociationSentence entityAssociationSentence = new EntityAssociationSentence (endPointFound.getEntityInstanceId(), endPointFound.getEntityInstance().getEntityTypeName(), entityAssociationInstance.getEntityInstanceId(), entityAssociationInstance.getEntityInstance().getEntityTypeName(),lemma, patternAssociation.getPatternName());
+												sentence.addEntityAssociationInstanceFound(entityAssociationSentence);
+												patter_presente=true;
+											}
+										}
+									}
+									if(!patter_presente) {
+										EntityAssociationSentence entityAssociationSentence = new EntityAssociationSentence (endPointFound.getEntityInstanceId(), endPointFound.getEntityInstance().getEntityTypeName(), entityAssociationInstance.getEntityInstanceId(), entityAssociationInstance.getEntityInstance().getEntityTypeName(),"", Constants.DEFAULT_ASSOCIATION_RULE);
+										sentence.addEntityAssociationInstanceFound(entityAssociationSentence);
+										co_ocurrences_score ++;
+									}
+								}catch(Exception e) {
+									log.error("Error with relation generation " ,e );
+								}
+							}	
 						}
-						words_between = text_between_relation.split(" ");
-						//este seria el patron ...
+				    	relevantTopiInformation.setCoOcurrenceScore(co_ocurrences_score);
+				    	relevantTopiInformation.setPatternScore(patterns_score);
 						log.debug(sentence.getText());
-						log.debug(words_between.length);
-						Annotation sentence_annotated= new Annotation(sentence.getText());
-						pipeline.annotate(sentence_annotated);
-						List<CoreLabel> tokens= sentence_annotated.get(TokensAnnotation.class);
-						
-						boolean count = false;
-						int init_pattern_offset = 0;
-						int end_pattern_offset = 0;
-						for (CoreLabel token: tokens){
-							String word = token.get(TextAnnotation.class);
-							String pos = token.get(PartOfSpeechAnnotation.class);
-							String ner = token.get(NamedEntityTagAnnotation.class);
-							String lemma = token.get(LemmaAnnotation.class);
-							if(lemma.equals("induce") || lemma.equals("increase")) {//aca por ejemplo induce es el lemma. falta ver porque pasa muchos chemical en la 
-								//misma sentencia, hay que armar un score en base a la co-ocurrencia, palabras en el medio y +++
-								log.debug("induce increase");
-							}
-							/*if(!count && (token.endPosition()==chemicalFound.getEnd() || token.endPosition()==endPointFound.getEnd())) {
-								init_pattern_offset = token.beginPosition();
-								count = true;
-							}else if(count && token.endPosition()==chemicalFound.getEnd() || token.endPosition()==endPointFound.getEnd()) {
-								count = false;
-								end_pattern_offset = token.endPosition();
-							}*/
-							//System.out.println(word + "\t" + token.beginPosition() + "\t" + token.endPosition() + "\t" + pos + "\t" + ner + "\t" + lemma + "\t\n");
-						}
-						
-						log.debug(sentence.getText().substring(init_pattern_offset, end_pattern_offset));
-						
-					}catch(Exception e) {
-						log.error("Error with relation generation " ,e );
-					}
-				}	
-			}	
-			relevantTopiInformation.setCoOcurrenceScore(co_ocurrences_score);
-			log.debug(sentence.getText());
-			log.debug("End Point : " + relevantTopiInformation.getTopicName());
-			log.debug("Classifier score : " + relevantTopiInformation.getClassifierScore());
-			log.debug("End Point Terms : " +relevantTopiInformation.getNumberOfTermsScore());
-			log.debug("End Point Terms co-ocurrences with compounds: " + relevantTopiInformation.getCoOcurrenceScore());
-			//log.debug("End Point patterns : " + relevantTopiInformation.getCoOcurrenceScore());
+						log.debug("End Point : " + relevantTopiInformation.getTopicName());
+						log.debug("Classifier score : " + relevantTopiInformation.getClassifierScore());
+						log.debug("End Point Terms : " +relevantTopiInformation.getNumberOfTermsScore());
+						log.debug("End Point Terms co-ocurrences : " + relevantTopiInformation.getCoOcurrenceScore());
+						//log.debug("End Point patterns : " + relevantTopiInformation.getCoOcurrenceScore());
+				    }
+				}else {
+					log.warn("The relevant topic information is not present : " + customEntityNameTagger.getTaggerName());
+				}
+			}
 		}
 	}
-
-
 
 	/**
 	 * 
@@ -314,274 +314,31 @@ class MainServiceImpl implements MainService {
 			String sentencesPath = properties.getProperty("customtag."+i+".taggedTermsPathSentences");
 			if(name!=null && blocksPath!=null && sentencesPath!=null) {
 				CustomEntityNameTagger customEntityNameTagger= new CustomEntityNameTagger(name, blocksPath, sentencesPath);
+				for (int j = 1; j < 50; j++) {
+					String entity =  properties.getProperty("customtag."+i+".relation."+j+".entity");
+					String relation_name =  properties.getProperty("customtag."+i+".relation."+j+".name");
+					String key_lemma_list =  properties.getProperty("customtag."+i+".relation."+j+".pattern");
+					if(entity!=null) {
+						EntityAssociation entityAssociation = new EntityAssociation(entity);
+						if(relation_name!=null && key_lemma_list!=null) {
+							String[] keys = key_lemma_list.split(",");
+							PatternAssociation patternAssociation = new PatternAssociation(relation_name, keys);
+							entityAssociation.addPatternAssociation(patternAssociation);
+						}
+						customEntityNameTagger.addEntityAssociation(entityAssociation);
+					}
+				}
 				customsTaggers.add(customEntityNameTagger);
 			}
 		}
-		
-		
 	}
 
 
-	private void diseases(Boolean retrieveDiseases, String diseasesTaggedPathBlocks, String diseasesTaggedPathSentences,File file_to_classify,
-			Document document, Section section) {
-		if(retrieveDiseases) {
-			if (Files.isRegularFile(Paths.get(diseasesTaggedPathBlocks + File.separator + file_to_classify.getName()))) {
-				for (String line : ObjectBank.getLineIterator(diseasesTaggedPathBlocks + File.separator + file_to_classify.getName(), "utf-8")) {
-					String[] data = line.split("\t");
-			    	if(data[0]!=null && data[0].equals(document.getDocumentId())) {
-			    		log.info("Document " + document.getDocumentId() + " \n " + line);
-			    		EntityInstanceFound entityInstanceFound = retrieveDisease(data); 
-			    		if(entityInstanceFound!=null) {
-			    			section.addEntityInstanceFound(entityInstanceFound);
-			    		}else {
-			    			log.error("Error retrieving diseases tagged for document " + document.getDocumentId() + " in file: " + file_to_classify.getName() );
-			    			log.error("The tagged line is" + data);
-			    		}
-			    		
-			    	}
-			    }
-			} else {
-				log.error("File not found " + diseasesTaggedPathBlocks + File.separator + file_to_classify.getName());
-			}
-			
-			//sentences
-			for (Sentence sentence : section.getSentences()) {
-				if (Files.isRegularFile(Paths.get(diseasesTaggedPathSentences + File.separator + file_to_classify.getName()))) {
-					for (String line : ObjectBank.getLineIterator(diseasesTaggedPathSentences + File.separator + file_to_classify.getName(), "utf-8")) {
-						String[] data = line.split("\t");
-						if(data[0]!=null && data[0].equals(sentence.getSentenceId())) {
-				    		log.info("Sentence " + sentence.getSentenceId() + " \n " + line);
-				    		EntityInstanceFound entityInstanceFound = retrieveDisease(data); 
-				    		if(entityInstanceFound!=null) {
-				    			sentence.addEntityInstanceFound(entityInstanceFound);
-				    		}else {
-				    			log.error("Error retrieving diseases tagged for sentence " + sentence.getSentenceId() + " in file: " + file_to_classify.getName() );
-				    			log.error("The tagged line is" + data);
-				    		}
-				    	}
-				    }
-				} else {
-					log.error("File not found " + diseasesTaggedPathSentences + File.separator + file_to_classify.getName());
-				}
-			}
-			
-		}
-	}
-
-	private void genes(Boolean retrieveGenes, String geneTaggedPathBlocks, String geneTaggedPathSentences, File file_to_classify,
-			Document document, Section section) {
-		if(retrieveGenes) {
-			if (Files.isRegularFile(Paths.get(geneTaggedPathBlocks + File.separator + file_to_classify.getName()))) {
-				for (String line : ObjectBank.getLineIterator(geneTaggedPathBlocks + File.separator + file_to_classify.getName(), "utf-8")) {
-					String[] data = line.split("\t");
-			    	if(data.length>1 && data[0]!=null && data[0].equals(document.getDocumentId())) {
-			    		log.info("Document " + document.getDocumentId() + " \n " + line);
-			    		EntityInstanceFound entityInstanceFound = retrieveGenes(data); 
-			    		if(entityInstanceFound!=null) {
-			    			section.addEntityInstanceFound(entityInstanceFound);
-			    		}else {
-			    			log.error("Error retrieving genes tagged for document " + document.getDocumentId() + " in file: " + file_to_classify.getName() );
-			    			log.error("The tagged line is" + data);
-			    		}
-			    	}
-			    }
-			} else {
-				log.error("File not found " + geneTaggedPathBlocks + File.separator + file_to_classify.getName());
-			}
-			
-			//sentences
-			for (Sentence sentence : section.getSentences()) {
-				if (Files.isRegularFile(Paths.get(geneTaggedPathSentences + File.separator + file_to_classify.getName()))) {
-					for (String line : ObjectBank.getLineIterator(geneTaggedPathSentences + File.separator + file_to_classify.getName(), "utf-8")) {
-						String[] data = line.split("\t");
-						if(data.length>1 && data[0]!=null && data[0].equals(sentence.getSentenceId())) {
-				    		log.info("Sentence " + sentence.getSentenceId() + " \n " + line);
-				    		EntityInstanceFound entityInstanceFound = retrieveGenes(data); 
-				    		if(entityInstanceFound!=null) {
-				    			sentence.addEntityInstanceFound(entityInstanceFound);
-				    		}else {
-				    			log.error("Error retrieving genes tagged for sentence " + sentence.getSentenceId() + " in file: " + file_to_classify.getName() );
-				    			log.error("The tagged line is" + data);
-				    		}
-				    	}
-				    }
-				} else {
-					log.error("File not found " + geneTaggedPathSentences + File.separator + file_to_classify.getName());
-				}
-			}
-			
-		}
-	}
-	
-
-	private void species(Boolean retrieveSpecies, String speciesTaggedPathBlocks, String speciesTaggedPathSentences, File file_to_classify,
-			Document document, Section section) {
-		if(retrieveSpecies) {
-			if (Files.isRegularFile(Paths.get(speciesTaggedPathBlocks + File.separator + file_to_classify.getName() + "_tagged.txt"))) {
-				for (String line : ObjectBank.getLineIterator(speciesTaggedPathBlocks + File.separator + file_to_classify.getName() + "_tagged.txt", "utf-8")) {
-					String[] data = line.split("\t");
-			    	if(data[1]!=null && data[1].equals(document.getDocumentId())) {
-			    		log.info("Document " + document.getDocumentId() + " \n " + line);
-			    		EntityInstanceFound entityInstanceFound = retrieveSpecies(data); 
-			    		if(entityInstanceFound!=null) {
-			    			section.addEntityInstanceFound(entityInstanceFound);
-			    		}else {
-			    			log.error("Error retrieving species tagged for document " + document.getDocumentId() + " in file: " + file_to_classify.getName() );
-			    			log.error("The tagged line is" + data);
-			    		}
-			    	}
-			    }
-			} else {
-				log.error("File not found " + speciesTaggedPathBlocks + File.separator + file_to_classify.getName());
-			}
-			
-			//sentences
-			for (Sentence sentence : section.getSentences()) {
-				if (Files.isRegularFile(Paths.get(speciesTaggedPathSentences + File.separator + file_to_classify.getName() + "_tagged.txt"))) {
-					for (String line : ObjectBank.getLineIterator(speciesTaggedPathSentences + File.separator + file_to_classify.getName() + "_tagged.txt", "utf-8")) {
-						String[] data = line.split("\t");
-						if(data[1]!=null && data[1].equals(sentence.getSentenceId())) {
-				    		log.info("Sentence " + sentence.getSentenceId() + " \n " + line);
-				    		EntityInstanceFound entityInstanceFound = retrieveSpecies(data); 
-				    		if(entityInstanceFound!=null) {
-				    			sentence.addEntityInstanceFound(entityInstanceFound);
-				    		}else {
-				    			log.error("Error retrieving species tagged for sentence " + sentence.getSentenceId() + " in file: " + file_to_classify.getName() );
-				    			log.error("The tagged line is" + data);
-				    		}
-				    	}
-				    }
-				} else {
-					log.error("File not found " + speciesTaggedPathSentences + File.separator + file_to_classify.getName());
-				}
-			}
-			
-		}
-	}
-
-
-	private void chemicalCompounds(Boolean retrieveChemicalCompounds, String chemicalCompoundsTaggedPathBlocks, String chemicalCompoundsTaggedPathSentences,
-			File file_to_classify, Document document, Section section) {
-		if(retrieveChemicalCompounds) {
-			
-			//blocks
-			if (Files.isRegularFile(Paths.get(chemicalCompoundsTaggedPathBlocks + File.separator + file_to_classify.getName()))) {
-				for (String line : ObjectBank.getLineIterator(chemicalCompoundsTaggedPathBlocks + File.separator + file_to_classify.getName(), "utf-8")) {
-					String[] data_chemical_compound = line.split("\t");
-			    	if(data_chemical_compound[0]!=null && data_chemical_compound[0].equals(document.getDocumentId())) {
-			    		log.info("Document " + document.getDocumentId() + " \n " + line);
-			    		EntityInstanceFound entityInstanceFound = retrieveChemicalCompound(data_chemical_compound); 
-			    		if(entityInstanceFound!=null) {
-			    			section.addEntityInstanceFound(entityInstanceFound);
-			    		}else {
-			    			log.error("Error retrieving chemical compound tagged for document " + document.getDocumentId() + " in file: " + file_to_classify.getName() );
-			    			log.error("The tagged line is" + data_chemical_compound);
-			    		}
-			    		
-			    	}
-			    }
-			} else {
-				log.error("File not found " + chemicalCompoundsTaggedPathBlocks + File.separator + file_to_classify.getName());
-			}
-			
-			//sentences
-			for (Sentence sentence : section.getSentences()) {
-				if (Files.isRegularFile(Paths.get(chemicalCompoundsTaggedPathSentences + File.separator + file_to_classify.getName()))) {
-					for (String line : ObjectBank.getLineIterator(chemicalCompoundsTaggedPathSentences + File.separator + file_to_classify.getName(), "utf-8")) {
-						String[] data_chemical_compound = line.split("\t");
-				    	if(data_chemical_compound[0]!=null && data_chemical_compound[0].equals(sentence.getSentenceId())) {
-				    		log.info("Sentence " + sentence.getSentenceId() + " \n " + line);
-				    		EntityInstanceFound entityInstanceFound = retrieveChemicalCompound(data_chemical_compound); 
-				    		if(entityInstanceFound!=null) {
-				    			sentence.addEntityInstanceFound(entityInstanceFound);
-				    		}else {
-				    			log.error("Error retrieving chemical compound tagged for sentence " + sentence.getSentenceId() + " in file: " + file_to_classify.getName() );
-				    			log.error("The tagged line is" + data_chemical_compound);
-				    		}
-				    	}
-				    }
-				} else {
-					log.error("File not found " + chemicalCompoundsTaggedPathSentences + File.separator + file_to_classify.getName());
-				}
-			}
-		}
-	}
-	
-	private EntityInstanceFound retrieveGenes(String[] data) {
-		try {
-			String id = data[0];
-			Integer start = new Integer(data[1]);
-			Integer end = new Integer(data[2]);
-			String text = data[3];
-			String type = data[4];
-			String ncbi_id = data[5];
-			
-			EntityType entityType = entitiesType.get(Constants.GENES_ENTITY_TYPE);
-			//Fix put comlumns into text file output
-			ReferenceValue key_val = new ReferenceValue(entityType.getReferenceByName("ncbi").getName() , ncbi_id);
-			ReferenceValue type_val = new ReferenceValue(entityType.getReferenceByName("type").getName(), type);
-			List<ReferenceValue> referenceValues = new ArrayList<ReferenceValue>();
-			referenceValues.add(key_val);
-			referenceValues.add(type_val);
-			EntityInstance entityInstance = new EntityInstance(text ,entityType, referenceValues);
-			EntityInstanceFound found = new EntityInstanceFound(start, end, entityInstance, "trivial", "trivial");
-			return found;
-		}catch(Exception e) {
-			log.error("Error reading species tagged line " + data ,e);
-		}
-		return null;
-		
-	}
 	
 	
-	private EntityInstanceFound retrieveSpecies(String[] data) {
-		try {
-			String entity = data[0];
-			String id = data[1];
-			Integer start = new Integer(data[2]);
-			Integer end = new Integer(data[3]);
-			String text = data[4];
-			String comment = "";
-			if (data.length==6) {
-				comment = data[5];
-			}
-			EntityType entityType = entitiesType.get(Constants.SPECIES_ENTITY_TYPE);
-			//Fix put comlumns into text file output
-			ReferenceValue key_val = new ReferenceValue(entityType.getReferenceByName("species_ncbi").getName(), entity);
-			List<ReferenceValue> referenceValues = new ArrayList<ReferenceValue>();
-			referenceValues.add(key_val);
-			EntityInstance entityInstance = new EntityInstance(text ,entityType, referenceValues);
-			EntityInstanceFound found = new EntityInstanceFound(start, end, entityInstance, "trivial", "trivial");
-			return found;
-		}catch(Exception e) {
-			log.error("Error reading species tagged line " + data ,e);
-		}
-		return null;
-		
-	}
 	
 	
-	private EntityInstanceFound retrieveDisease(String[] data) {
-		try {
-			EntityType entityType = entitiesType.get(Constants.DISEASES_ENTITY_TYPE);
-			List<ReferenceValue> referenceValues = new ArrayList<ReferenceValue>();
-			String id = data[0];
-			Integer start = new Integer(data[1]);
-			Integer end = new Integer(data[2]);
-			String text = data[3];
-			if (data.length==5) {
-				//could be mesh or omim
-				ReferenceValue key_val = new ReferenceValue(entityType.getReferenceByName("database_relation_key").getName(),data[4]);
-				referenceValues.add(key_val);
-			}
-			EntityInstance entityInstance = new EntityInstance(text ,entityType, referenceValues);
-			EntityInstanceFound found = new EntityInstanceFound(start, end, entityInstance, "trivial", "trivial");
-			return found;
-		} catch(Exception e) {
-			log.error("Error reading diseases tagged line " + data ,e);
-		}
-		return null;
-	}
+	
 
 	/**
 	 * 
@@ -649,225 +406,6 @@ class MainServiceImpl implements MainService {
 		EntityType entityType = new EntityType(Constants.GENES_ENTITY_TYPE, refereces );
 		entitiesType.put(Constants.GENES_ENTITY_TYPE, entityType);
 	}
-	
-	/**
-	 * 
-	 * @param data_chemical_compound
-	 */
-	private EntityInstanceFound retrieveChemicalCompound(String[] data_chemical_compound) {
-		try {
-			String id = data_chemical_compound[0];
-			Integer start = new Integer(data_chemical_compound[1]);
-			Integer end = new Integer(data_chemical_compound[2]);
-			String text = data_chemical_compound[3];
-			String mentionType = data_chemical_compound[4];
-			String mentionSource = data_chemical_compound[5];
-			String chid = data_chemical_compound[6];
-			String cheb = data_chemical_compound[7];
-			String cas = data_chemical_compound[8];
-			String pubc = data_chemical_compound[9];
-			String pubs = data_chemical_compound[10];
-			String inch = data_chemical_compound[11];
-			String drug = data_chemical_compound[12];
-			String hmbd = data_chemical_compound[13];
-			String kegg = data_chemical_compound[14];
-			String kegd = data_chemical_compound[15];
-			String mesh = data_chemical_compound[16];
-			
-			EntityType entityType = entitiesType.get(Constants.CHEMICAL_ENTITY_TYPE);
-			List<ReferenceValue> referenceValues = new ArrayList<ReferenceValue>();
-			//Fix put comlumns into text file output
-			if(!(chid==null || (chid!=null && (chid.trim().equals("null")|| chid.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(chid, entityType.getReferenceByName("chid").getName());
-				referenceValues.add(v);
-			}
-			
-			if(!(cheb==null || (cheb!=null && (cheb.trim().equals("null")|| cheb.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_CHEB, cheb);
-				referenceValues.add(v);
-			}
-			
-			if(!(cas==null || (cas!=null && (cas.trim().equals("null")|| cas.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_CAS, cas);
-				referenceValues.add(v);
-			}
-			
-			if(!(pubc==null || (pubc!=null && (pubc.trim().equals("null")|| pubc.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_PUBC, pubc);
-				referenceValues.add(v);
-			}
-			
-			if(!(pubs==null || (pubs!=null && (pubs.trim().equals("null")|| pubs.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_PUBS, pubs);
-				referenceValues.add(v);
-			}
-			
-			if(!(inch==null || (inch!=null && (inch.trim().equals("null")|| inch.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_INCH, inch);
-				referenceValues.add(v);
-			}
-			
-			if(!(drug==null || (drug!=null && (drug.trim().equals("null")|| drug.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_DRUG, drug);
-				referenceValues.add(v);
-			}
-			
-			if(!(hmbd==null || (hmbd!=null && (hmbd.trim().equals("null")|| hmbd.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_HMBD, hmbd);
-				referenceValues.add(v);
-			}
-			
-			if(!(kegg==null || (kegg!=null && (kegg.trim().equals("null")|| kegg.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_KEGG, kegg);
-				referenceValues.add(v);
-			}
-			
-			if(!(kegd==null || (kegd!=null && (kegd.trim().equals("null")|| kegd.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_KEGD, kegd);
-				referenceValues.add(v);
-			}
-			
-			if(!(mesh==null || (mesh!=null && (mesh.trim().equals("null")|| mesh.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_MESH, mesh);
-				referenceValues.add(v);
-			}
-			
-			EntityInstance entityInstance = new EntityInstance(text ,entityType, referenceValues);
-			EntityInstanceFound found = new EntityInstanceFound(start, end, entityInstance, mentionType, mentionSource);
-			return found;
-		}catch(Exception e) {
-			log.error("Error reading chemical compound tagged line " + data_chemical_compound,e );
-		}
-		return null;
-	}
-	
-	
-//	public void execute(String propertiesParametersPath) {
-//		try {
-//			
-//			log.info("Retrieve Bioentities Tagging information with properties :  " +  propertiesParametersPath);
-//			Properties propertiesParameters = this.loadPropertiesParameters(propertiesParametersPath);
-//			
-//			log.info("The values of the properties file are: ");
-//			Enumeration e = propertiesParameters.propertyNames();
-//			while (e.hasMoreElements()) {
-//		      String key = (String) e.nextElement();
-//		      log.info(key + " -- " + propertiesParameters.getProperty(key) );
-//		    }
-//			
-//			String inputArticlesDirectoryPath = propertiesParameters.getProperty("inputArticlesDirectory");
-//			String inputSentencesDirectoryPath = propertiesParameters.getProperty("inputSentencesDirectory");
-//			String outputDirectoryPath = propertiesParameters.getProperty("outputDirectory");
-//			
-//			File inputArticlesDirectory = new File(inputArticlesDirectoryPath);
-//		    if(!inputArticlesDirectory.exists()) {
-//		    	return ;
-//		    }
-//		    if (!Files.isDirectory(Paths.get(inputArticlesDirectoryPath))) {
-//		    	return ;
-//		    }
-//		    
-//		    File inputDirectorySentences = new File(inputSentencesDirectoryPath);
-//		    if(!inputDirectorySentences.exists()) {
-//		    	return ;
-//		    }
-//		    if (!Files.isDirectory(Paths.get(inputSentencesDirectoryPath))) {
-//		    	return ;
-//		    }
-//			
-//		    File outputDirectory = new File(outputDirectoryPath);
-//		    if(!outputDirectory.exists())
-//		    	outputDirectory.mkdirs();
-//		    
-//			Boolean retrieveChemicalCompounds = propertiesParameters.getProperty("retrieveChemicalCompounds")!=null & 
-//					propertiesParameters.getProperty("retrieveChemicalCompounds").equals("true");
-//			String chemicalCompoundsTaggedPath = "";
-//			if(retrieveChemicalCompounds) {
-//				chemicalCompoundsTaggedPath = propertiesParameters.getProperty("chemicalCompoundsTaggedPath");
-//			}
-//			
-//			Boolean retrieveDiseases = propertiesParameters.getProperty("retrieveDiseases")!=null & 
-//					propertiesParameters.getProperty("retrieveDiseases").equals("true");
-//			String diseasesTaggedPath = "";
-//			if(retrieveDiseases) {
-//				diseasesTaggedPath = propertiesParameters.getProperty("diseasesTaggedPath");
-//			}
-//			
-//			Boolean retrieveGenes = propertiesParameters.getProperty("retrieveGenes")!=null & 
-//					propertiesParameters.getProperty("retrieveGenes").equals("true");
-//			String genesTaggedPath = "";
-//			if(retrieveGenes) {
-//				genesTaggedPath = propertiesParameters.getProperty("genesTaggedPath");
-//			}
-//			
-//			Boolean retrieveSpecies = propertiesParameters.getProperty("retrieveSpecies")!=null & 
-//					propertiesParameters.getProperty("retrieveSpecies").equals("true");
-//			String speciesTaggedPath = "";
-//			if(retrieveSpecies) {
-//				speciesTaggedPath = propertiesParameters.getProperty("speciesTaggedPath");
-//			}
-//			
-//			Boolean enableLTKB = propertiesParameters.getProperty("enableLTKB")!=null & 
-//					propertiesParameters.getProperty("enableLTKB").equals("true");
-//			
-//			
-//			List<String> filesProcessed = readFilesProcessed(outputDirectoryPath); 
-//		    BufferedWriter filesPrecessedWriter = new BufferedWriter(new FileWriter(outputDirectoryPath + File.separator + "list_files_processed.dat", true));
-//		    
-//		    File[] files =  inputArticlesDirectory.listFiles();
-//			for (File file_to_classify : files) {
-//				if(file_to_classify.getName().endsWith(".txt") && filesProcessed!=null && !filesProcessed.contains(file_to_classify.getName())){
-//					log.info("Processing file  : " + file_to_classify.getName());
-//					String fileName = file_to_classify.getName();
-//					String internalOutputPath = outputDirectory + File.separator + file_to_classify.getName() + File.separator;
-//					File internalOutput = new File(internalOutputPath);
-//				    if(!internalOutput.exists())
-//				    	internalOutput.mkdirs();
-//					
-//				    Map<String, Document> documents_map = this.loadDocuments(file_to_classify);
-//				    if (Files.isRegularFile(Paths.get(inputDirectorySentences + File.separator + fileName))) {
-//						File inputFileSentences = new File(inputDirectorySentences + File.separator + fileName);
-//						this.loadSentences(documents_map, inputFileSentences);
-//				    }
-//				    
-//				    if(retrieveChemicalCompounds) {
-//				    	
-//				    	
-//				    	
-//				    }
-//				    
-//				    for (Document document : documents_map.values()) {
-//				    	
-//				    	
-//				    	
-//				    	generateJSONFile(document, internalOutputPath + document.getDocumentId() + ".json");
-//					}
-//				    /*for (String line : ObjectBank.getLineIterator(file_to_classify.getAbsolutePath(), "utf-8")) {
-//						try {
-//							String[] data_document = line.split("\t");
-//							Double score = new Double(data_document[0]);
-//							String relevant = data_document[1];
-//							String id = data_document[2];
-//							String title = data_document[3];
-//							String text_block = data_document[4];
-//							log.info(line);
-//							//process(id, text, outPutFile, file_to_classify.getName());
-//						}  catch (Exception e2) {
-//							log.error("Error processing the document line " + line + " belongs to the file: " +  fileName,e2);
-//						}
-//					}*/
-//				    
-//				    log.info("Processed file " + file_to_classify.getName());
-//				    
-//				    filesPrecessedWriter.write(file_to_classify.getName()+"\n");
-//					filesPrecessedWriter.flush();
-//				}
-//			}
-//			filesPrecessedWriter.close();
-//		}  catch (Exception e) {
-//			log.error("Generic error in the classification step",e);
-//		}
-//	}
 	
 	/**
 	 * 
@@ -1020,4 +558,6 @@ class MainServiceImpl implements MainService {
 					e.printStackTrace();
 				}
 			}
+	 
+	 
 }

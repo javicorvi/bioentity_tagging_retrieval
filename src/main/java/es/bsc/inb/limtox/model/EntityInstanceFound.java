@@ -1,7 +1,9 @@
 package es.bsc.inb.limtox.model;
 
 public class EntityInstanceFound {
-
+	
+	private String entityInstanceId;
+	
 	private Section section;
 	
 	private Integer start;
@@ -14,13 +16,9 @@ public class EntityInstanceFound {
 	
 	private String mentionSource;
 	
-	
-	
-	
-	
-	public EntityInstanceFound(Integer start, Integer end, EntityInstance entityInstance,
-			String mentionType, String mentionSource) {
+	public EntityInstanceFound(Integer start, Integer end, EntityInstance entityInstance, String mentionType, String mentionSource) {
 		super();
+		this.entityInstanceId=""+start+"_"+end;
 		this.start = start;
 		this.end = end;
 		this.entityInstance = entityInstance;
@@ -74,6 +72,14 @@ public class EntityInstanceFound {
 
 	public void setMentionSource(String mentionSource) {
 		this.mentionSource = mentionSource;
+	}
+
+	public String getEntityInstanceId() {
+		return entityInstanceId;
+	}
+
+	public void setEntityInstanceId(String entityInstanceId) {
+		this.entityInstanceId = entityInstanceId;
 	}
 	
 	
