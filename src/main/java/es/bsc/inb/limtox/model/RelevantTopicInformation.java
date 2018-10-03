@@ -17,6 +17,8 @@ public class RelevantTopicInformation {
 
 	private Integer patternScore;
 	
+	private Float customWeightScore;
+	
 	public RelevantTopicInformation(String topicName, Double classifierScore) {
 		this.topicName=topicName;
 		this.classifierScore=classifierScore;
@@ -64,7 +66,13 @@ public class RelevantTopicInformation {
 		this.patternScore = patternScore;
 	}
 
-	
-	
+	public Float getCustomWeightScore() {
+		return customWeightScore;
+	}
+
+	public void setCustomWeightScore(Float customWeightScore) {
+		this.customWeightScore = customWeightScore;
+	}
+
 	
 }

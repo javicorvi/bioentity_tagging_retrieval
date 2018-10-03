@@ -43,12 +43,8 @@ import es.bsc.inb.limtox.model.Document;
 import es.bsc.inb.limtox.model.DocumentSource;
 import es.bsc.inb.limtox.model.EntityAssociation;
 import es.bsc.inb.limtox.model.EntityAssociationSentence;
-import es.bsc.inb.limtox.model.EntityInstance;
 import es.bsc.inb.limtox.model.EntityInstanceFound;
-import es.bsc.inb.limtox.model.EntityType;
 import es.bsc.inb.limtox.model.PatternAssociation;
-import es.bsc.inb.limtox.model.Reference;
-import es.bsc.inb.limtox.model.ReferenceValue;
 import es.bsc.inb.limtox.model.RelevantDocumentTopicInformation;
 import es.bsc.inb.limtox.model.RelevantSectionTopicInformation;
 import es.bsc.inb.limtox.model.RelevantSentenceTopicInformation;
@@ -62,9 +58,6 @@ class MainServiceImpl implements MainService {
 
 	protected Log log = LogFactory.getLog(this.getClass());
 	
-	Map<String,EntityType> entitiesType = new HashMap<String,EntityType>();
-	
-	List<CustomEntityNameTagger> customsTaggers = new ArrayList<CustomEntityNameTagger>();
 	@Autowired
 	CustomTaggerService customTaggerService;
 	
@@ -121,48 +114,54 @@ class MainServiceImpl implements MainService {
 					propertiesParameters.getProperty("retrieveChemicalCompounds").equals("true");
 			String chemicalCompoundsTaggedPathBlocks = "";
 			String chemicalCompoundsTaggedPathSentences = "";
-			
+			Float chemicalCompoundsWeightScore = 0f;
 			if(retrieveChemicalCompounds) {
 				chemicalCompoundsTaggedPathBlocks = propertiesParameters.getProperty("chemicalCompoundsTaggedPathBlocks");
 				chemicalCompoundsTaggedPathSentences = propertiesParameters.getProperty("chemicalCompoundsTaggedPathSentences");
-				createChemicalCompoundEntityType();
+				chemicalCompoundsWeightScore = new Float(propertiesParameters.get("chemical_compunds.weight.score").toString());
+				chemicalCompoundService.createEntityStructure(chemicalCompoundsWeightScore);
 			}
 			
 			Boolean retrieveDiseases = propertiesParameters.getProperty("retrieveDiseases")!=null & 
 					propertiesParameters.getProperty("retrieveDiseases").equals("true");
 			String diseasesTaggedPathBlocks = "";
 			String diseasesTaggedPathSentences = "";
+			Float diseasesWeightScore = 0f;
 			if(retrieveDiseases) {
 				diseasesTaggedPathBlocks = propertiesParameters.getProperty("diseasesTaggedPathBlocks");
 				diseasesTaggedPathSentences = propertiesParameters.getProperty("diseasesTaggedPathSentences");
-				createDiseasesEntityType();
+				diseasesWeightScore = new Float(propertiesParameters.get("diseases.weight.score").toString());
+				diseaseService.createEntityStructure(diseasesWeightScore);
 			}
 			
 			Boolean retrieveGenes = propertiesParameters.getProperty("retrieveGenes")!=null & 
 					propertiesParameters.getProperty("retrieveGenes").equals("true");
 			String genesTaggedPathBlocks = "";
 			String genesTaggedPathSentences = "";
-			
+			Float genesWeightScore = 0f;
 			if(retrieveGenes) {
 				genesTaggedPathBlocks = propertiesParameters.getProperty("genesTaggedPathBlocks");
 				genesTaggedPathSentences = propertiesParameters.getProperty("genesTaggedPathSentences");
-				createGenesEntityType();
+				genesWeightScore = new Float(propertiesParameters.get("genes.weight.score").toString());
+				geneService.createEntityStructure(genesWeightScore);
 			}
 			
 			Boolean retrieveSpecies = propertiesParameters.getProperty("retrieveSpecies")!=null & 
 					propertiesParameters.getProperty("retrieveSpecies").equals("true");
 			String speciesTaggedPathBlocks = "";
 			String speciesTaggedPathSentences = "";
+			Float speciesWeightScore = 0f;
 			if(retrieveSpecies) {
 				speciesTaggedPathBlocks = propertiesParameters.getProperty("speciesTaggedPathBlocks");
 				speciesTaggedPathSentences = propertiesParameters.getProperty("speciesTaggedPathSentences");
-				createSpeciesEntityType();
+				speciesWeightScore = new Float(propertiesParameters.get("species.weight.score").toString());
+				specieService.createEntityStructure(speciesWeightScore);
 			}
 			
 			Boolean enableLTKB = propertiesParameters.getProperty("enableLTKB")!=null & 
 					propertiesParameters.getProperty("enableLTKB").equals("true");
 			
-			readCustomTaggedEntitiesProperties(propertiesParameters);
+			customTaggerService.readCustomTaggedEntitiesProperties(propertiesParameters);
 			
 			List<String> filesProcessed = readFilesProcessed(outputDirectoryPath); 
 		    BufferedWriter filesPrecessedWriter = new BufferedWriter(new FileWriter(outputDirectoryPath + File.separator + "list_files_processed.dat", true));
@@ -187,17 +186,17 @@ class MainServiceImpl implements MainService {
 				    	
 				    	Section section = document.getSections().get(0);
 				    	
-				    	chemicalCompoundService.execute(retrieveChemicalCompounds, chemicalCompoundsTaggedPathBlocks, chemicalCompoundsTaggedPathSentences, file_to_classify, document, section, entitiesType);	
+				    	chemicalCompoundService.execute(retrieveChemicalCompounds, chemicalCompoundsTaggedPathBlocks, chemicalCompoundsTaggedPathSentences, file_to_classify, document, section);	
 				    	
-				    	specieService.execute(retrieveSpecies, speciesTaggedPathBlocks, speciesTaggedPathSentences, file_to_classify, document, section, entitiesType);	
+				    	specieService.execute(retrieveSpecies, speciesTaggedPathBlocks, speciesTaggedPathSentences, file_to_classify, document, section);	
 				    	
-				    	diseaseService.execute(retrieveDiseases, diseasesTaggedPathBlocks, diseasesTaggedPathSentences, file_to_classify, document, section, entitiesType);	
+				    	diseaseService.execute(retrieveDiseases, diseasesTaggedPathBlocks, diseasesTaggedPathSentences, file_to_classify, document, section);	
 				    	
-				    	geneService.execute(retrieveGenes, genesTaggedPathBlocks, genesTaggedPathSentences, file_to_classify, document, section, entitiesType);	
+				    	geneService.execute(retrieveGenes, genesTaggedPathBlocks, genesTaggedPathSentences, file_to_classify, document, section);	
 				    	
-				    	customTaggerService.execute(customsTaggers, file_to_classify, document, section);
+				    	customTaggerService.execute(file_to_classify, document, section);
 				    	
-				    	entityAssociations(customsTaggers, document, section);
+				    	entityAssociations(customTaggerService.getCustomsTaggers(), document, section);
 				    	
 				    	generateJSONFile(document, internalOutputPath + document.getDocumentId() + ".json");	
 				   
@@ -302,110 +301,6 @@ class MainServiceImpl implements MainService {
 			}
 		}
 	}
-
-	/**
-	 * 
-	 * @param properties
-	 */
-	private void readCustomTaggedEntitiesProperties(Properties properties) {
-		for (int i = 1; i < 50; i++) {
-			String name = properties.getProperty("customtag."+i+".taggerName");
-			String blocksPath = properties.getProperty("customtag."+i+".taggedTermsPathBlocks");
-			String sentencesPath = properties.getProperty("customtag."+i+".taggedTermsPathSentences");
-			if(name!=null && blocksPath!=null && sentencesPath!=null) {
-				CustomEntityNameTagger customEntityNameTagger= new CustomEntityNameTagger(name, blocksPath, sentencesPath);
-				for (int j = 1; j < 50; j++) {
-					String entity =  properties.getProperty("customtag."+i+".relation."+j+".entity");
-					String relation_name =  properties.getProperty("customtag."+i+".relation."+j+".name");
-					String key_lemma_list =  properties.getProperty("customtag."+i+".relation."+j+".pattern");
-					if(entity!=null) {
-						EntityAssociation entityAssociation = new EntityAssociation(entity);
-						if(relation_name!=null && key_lemma_list!=null) {
-							String[] keys = key_lemma_list.split(",");
-							PatternAssociation patternAssociation = new PatternAssociation(relation_name, keys);
-							entityAssociation.addPatternAssociation(patternAssociation);
-						}
-						customEntityNameTagger.addEntityAssociation(entityAssociation);
-					}
-				}
-				customsTaggers.add(customEntityNameTagger);
-			}
-		}
-	}
-
-
-	
-	
-	
-	
-	
-
-	/**
-	 * 
-	 */
-	private void createChemicalCompoundEntityType() {
-		Reference name = new Reference("name", "Trivial");
-		Reference chid = new Reference("chid", "Chem Id Plus");
-		Reference cheb = new Reference("cheb", "Chebi. Chemical Entities of Biological Interest ");
-		Reference cas = new Reference("cas", "CAS registry number. American Chemical Society");
-		Reference pubc = new Reference("pubc", "PubChem compound");
-		Reference pubs = new Reference("pubs", "PubChem Substance");
-		Reference inch = new Reference("inch", "International Chemical Identifier");
-		Reference drug = new Reference("drug", "The DrugBank database is a unique bioinformatics and cheminformatics resource that combines detailed drug data with comprehensive drug target information");
-		Reference hmbd = new Reference("hmbd","The Human Metabolome Database");
-		Reference kegg = new Reference("kegg","KEGG COMPOUND Database");
-		Reference kegd = new Reference("kegd","KEGG DRUG Database");
-		Reference mesh = new Reference("mesh","MeSH (Medical Subject Headings) is the NLM controlled vocabulary thesaurus used for indexing articles for PubMed.");
-		
-		List<Reference> refereces = new ArrayList<Reference>();
-		refereces.add(name);
-		refereces.add(chid);
-		refereces.add(cheb);
-		refereces.add(cas);
-		refereces.add(pubc);
-		refereces.add(pubs);
-		refereces.add(inch);
-		refereces.add(drug);
-		refereces.add(hmbd);
-		refereces.add(kegg);
-		refereces.add(kegd);
-		refereces.add(mesh);
-		
-		EntityType entityType = new EntityType(Constants.CHEMICAL_ENTITY_TYPE, refereces );
-		entitiesType.put(Constants.CHEMICAL_ENTITY_TYPE, entityType);
-	}
-
-	private void createDiseasesEntityType() {
-		Reference name = new Reference("name", "Trivial");
-		Reference database_relation_key = new Reference("database_relation_key", "MeSH or OMIM key");
-		List<Reference> refereces = new ArrayList<Reference>();
-		refereces.add(name);
-		refereces.add(database_relation_key);
-		EntityType entityType = new EntityType(Constants.DISEASES_ENTITY_TYPE, refereces );
-		entitiesType.put(Constants.DISEASES_ENTITY_TYPE, entityType);
-	}
-	
-	private void createSpeciesEntityType() {
-		Reference name = new Reference("name", "Trivial");
-		Reference database_relation_key = new Reference("species_ncbi", "NCBI Species");
-		List<Reference> refereces = new ArrayList<Reference>();
-		refereces.add(name);
-		refereces.add(database_relation_key);
-		EntityType entityType = new EntityType(Constants.SPECIES_ENTITY_TYPE, refereces );
-		entitiesType.put(Constants.SPECIES_ENTITY_TYPE, entityType);
-	}
-	
-	private void createGenesEntityType() {
-		Reference name = new Reference("name", "Trivial");
-		Reference type = new Reference("type", "Type of Found");
-		Reference ncbi_id = new Reference("ncbi", "NCBI id");
-		List<Reference> refereces = new ArrayList<Reference>();
-		refereces.add(name);
-		refereces.add(type);
-		refereces.add(ncbi_id);
-		EntityType entityType = new EntityType(Constants.GENES_ENTITY_TYPE, refereces );
-		entitiesType.put(Constants.GENES_ENTITY_TYPE, entityType);
-	}
 	
 	/**
 	 * 
@@ -438,7 +333,6 @@ class MainServiceImpl implements MainService {
 				}catch (Exception e) {
 					log.error(" Error loadinding document line " + line + " from file " + file_to_classify.getAbsolutePath(), e);
 				}
-				
 			}
 		} catch (Exception e) {
 			log.error(" General Exception " + file_to_classify, e);

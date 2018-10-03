@@ -5,25 +5,37 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 
 import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import edu.stanford.nlp.objectbank.ObjectBank;
 import es.bsc.inb.limtox.model.CustomEntityNameTagger;
 import es.bsc.inb.limtox.model.Document;
+import es.bsc.inb.limtox.model.EntityAssociation;
 import es.bsc.inb.limtox.model.EntityInstance;
 import es.bsc.inb.limtox.model.EntityInstanceFound;
+import es.bsc.inb.limtox.model.PatternAssociation;
 import es.bsc.inb.limtox.model.ReferenceValue;
 import es.bsc.inb.limtox.model.RelevantTopicInformation;
 import es.bsc.inb.limtox.model.Section;
 import es.bsc.inb.limtox.model.Sentence;
+import es.bsc.inb.limtox.util.Constants;
 @Service
 public class CustomTaggerServiceImpl implements CustomTaggerService {
 	
+	List<CustomEntityNameTagger> customsTaggers = new ArrayList<CustomEntityNameTagger>();
+	
+	@Autowired
+	protected EntityStructureService entityStructureService;
+	
 	static final Logger log = Logger.getLogger("taggingLog");
 	
-	public void execute(List<CustomEntityNameTagger> customsTaggers, File file_to_classify, Document document, Section section) {
+	
+	
+	public void execute(File file_to_classify, Document document, Section section) {
 		for (CustomEntityNameTagger customEntityNameTagger : customsTaggers) {
 			retrieveTaggerInfo(customEntityNameTagger, file_to_classify, document, section);
 		}
@@ -119,6 +131,12 @@ public class CustomTaggerServiceImpl implements CustomTaggerService {
 			RelevantTopicInformation relevantTopipInformation = section.getRelevantTopicsInformationByName(customEntityNameTagger.getTaggerName());
 			if(relevantTopipInformation!=null) {
 				relevantTopipInformation.setNumberOfTermsScore(numbersOfTerms);
+				relevantTopipInformation.setCustomWeightScore(
+						numbersOfTerms * 1 + 
+						section.getDiseasesQuantity() * entityStructureService.getEntityType(Constants.DISEASES_ENTITY_TYPE).getWeightScore() + 
+						section.getSpeciesQuantity() * entityStructureService.getEntityType(Constants.SPECIES_ENTITY_TYPE).getWeightScore() + 
+						section.getChemicalCompoundsQuantity() * entityStructureService.getEntityType(Constants.CHEMICAL_ENTITY_TYPE).getWeightScore() + 
+						section.getGenesQuantity() * entityStructureService.getEntityType(Constants.GENES_ENTITY_TYPE).getWeightScore());
 			}
 		} else {
 			log.error("File not found " + customEntityNameTagger.getTaggerBlocksPath() + File.separator + file_to_classify.getName());
@@ -154,5 +172,46 @@ public class CustomTaggerServiceImpl implements CustomTaggerService {
 		}
 		return null;
 	}
+	
+	
+	/**
+	 * 
+	 * @param properties
+	 */
+	public void readCustomTaggedEntitiesProperties(Properties properties) {
+		for (int i = 1; i < 50; i++) {
+			String name = properties.getProperty("customtag."+i+".taggerName");
+			String blocksPath = properties.getProperty("customtag."+i+".taggedTermsPathBlocks");
+			String sentencesPath = properties.getProperty("customtag."+i+".taggedTermsPathSentences");
+			if(name!=null && blocksPath!=null && sentencesPath!=null) {
+				CustomEntityNameTagger customEntityNameTagger= new CustomEntityNameTagger(name, blocksPath, sentencesPath);
+				for (int j = 1; j < 50; j++) {
+					String entity =  properties.getProperty("customtag."+i+".relation."+j+".entity");
+					String relation_name =  properties.getProperty("customtag."+i+".relation."+j+".name");
+					String key_lemma_list =  properties.getProperty("customtag."+i+".relation."+j+".pattern");
+					if(entity!=null) {
+						EntityAssociation entityAssociation = new EntityAssociation(entity);
+						if(relation_name!=null && key_lemma_list!=null) {
+							String[] keys = key_lemma_list.split(",");
+							PatternAssociation patternAssociation = new PatternAssociation(relation_name, keys);
+							entityAssociation.addPatternAssociation(patternAssociation);
+						}
+						customEntityNameTagger.addEntityAssociation(entityAssociation);
+					}
+				}
+				customsTaggers.add(customEntityNameTagger);
+			}
+		}
+	}
+
+	public List<CustomEntityNameTagger> getCustomsTaggers() {
+		return customsTaggers;
+	}
+
+	public void setCustomsTaggers(List<CustomEntityNameTagger> customsTaggers) {
+		this.customsTaggers = customsTaggers;
+	}
+	
+	
 	
 }

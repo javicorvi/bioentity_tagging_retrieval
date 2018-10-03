@@ -13,12 +13,20 @@ public class Section implements LimtoxEntity {
 	
 	private String text;
 	
-	private List<RelevantSectionTopicInformation> relevantTopicsInformation = new ArrayList<RelevantSectionTopicInformation>();
+	private Integer speciesQuantity;
 	
-	private List<Sentence> sentences = new ArrayList<Sentence>();
+	private Integer diseasesQuantity;
+	
+	private Integer genesQuantity;
+	
+	private Integer chemicalCompoundsQuantity;
+	
+	private List<RelevantSectionTopicInformation> relevantTopicsInformation = new ArrayList<RelevantSectionTopicInformation>();
 	
 	private List<EntityInstanceFound> entitiesInstanceFound = new  ArrayList<EntityInstanceFound>();
 	
+	private List<Sentence> sentences = new ArrayList<Sentence>();
+		
 	public Section(String name, String text) {
 		super();
 		this.name = name;
@@ -106,6 +114,39 @@ public class Section implements LimtoxEntity {
 		}
 		return null;
 	}
+
+	public Integer getSpeciesQuantity() {
+		return speciesQuantity;
+	}
+
+	public void setSpeciesQuantity(Integer speciesQuantity) {
+		this.speciesQuantity = speciesQuantity;
+	}
+
+	public Integer getDiseasesQuantity() {
+		return diseasesQuantity;
+	}
+
+	public void setDiseasesQuantity(Integer diseasesQuantity) {
+		this.diseasesQuantity = diseasesQuantity;
+	}
+
+	public Integer getGenesQuantity() {
+		return genesQuantity;
+	}
+
+	public void setGenesQuantity(Integer genesQuantity) {
+		this.genesQuantity = genesQuantity;
+	}
+
+	public Integer getChemicalCompoundsQuantity() {
+		return chemicalCompoundsQuantity;
+	}
+
+	public void setChemicalCompoundsQuantity(Integer chemicalCompoundsQuantity) {
+		this.chemicalCompoundsQuantity = chemicalCompoundsQuantity;
+	}
+	
 	
 	
 }

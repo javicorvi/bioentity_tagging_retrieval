@@ -8,10 +8,13 @@ public class EntityType {
 	
 	private List<Reference> references;
 
-	public EntityType(String name, List<Reference> references) {
+	private Float weightScore;
+	
+	public EntityType(String name, List<Reference> references, Float weightScore) {
 		super();
 		this.name = name;
 		this.references = references;
+		this.weightScore =  weightScore;
 	}
 
 	public String getName() {
@@ -39,4 +42,13 @@ public class EntityType {
 		return null;
 	}
 
+	public Float getWeightScore() {
+		return weightScore;
+	}
+
+	public void setWeightScore(Float weightScore) {
+		this.weightScore = weightScore;
+	}
+	
+	
 }

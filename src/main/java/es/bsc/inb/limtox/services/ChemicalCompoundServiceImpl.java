@@ -5,7 +5,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import org.apache.log4j.Logger;
 import org.springframework.stereotype.Service;
@@ -15,20 +14,21 @@ import es.bsc.inb.limtox.model.Document;
 import es.bsc.inb.limtox.model.EntityInstance;
 import es.bsc.inb.limtox.model.EntityInstanceFound;
 import es.bsc.inb.limtox.model.EntityType;
+import es.bsc.inb.limtox.model.Reference;
 import es.bsc.inb.limtox.model.ReferenceValue;
 import es.bsc.inb.limtox.model.Section;
 import es.bsc.inb.limtox.model.Sentence;
 import es.bsc.inb.limtox.util.Constants;
 @Service
-public class ChemicalCompoundServiceImpl implements ChemicalCompoundService {
+public class ChemicalCompoundServiceImpl extends EntityServiceImpl implements ChemicalCompoundService {
 	
 	static final Logger log = Logger.getLogger("taggingLog");
 	
 	public void execute (Boolean retrieveChemicalCompounds, String chemicalCompoundsTaggedPathBlocks, String chemicalCompoundsTaggedPathSentences,
-			File file_to_classify, Document document, Section section, Map<String,EntityType> entitiesType) {
+			File file_to_classify, Document document, Section section) {
 		if(retrieveChemicalCompounds) {
-			retrieveTaggerInfoFromSection(chemicalCompoundsTaggedPathBlocks, file_to_classify, document, section, entitiesType);
-			retrieveTaggerInfoFromSentences(chemicalCompoundsTaggedPathSentences, file_to_classify, section, entitiesType);
+			retrieveTaggerInfoFromSection(chemicalCompoundsTaggedPathBlocks, file_to_classify, document, section);
+			retrieveTaggerInfoFromSentences(chemicalCompoundsTaggedPathSentences, file_to_classify, section);
 		}
 	}
 	/**
@@ -37,16 +37,18 @@ public class ChemicalCompoundServiceImpl implements ChemicalCompoundService {
 	 * @param file_to_classify
 	 * @param section
 	 */
-	private void retrieveTaggerInfoFromSentences(String chemicalCompoundsTaggedPathSentences, File file_to_classify, Section section, Map<String,EntityType> entitiesType) {
+	private void retrieveTaggerInfoFromSentences(String chemicalCompoundsTaggedPathSentences, File file_to_classify, Section section) {
 		for (Sentence sentence : section.getSentences()) {
+			int chemicalCompoundsQuantity = 0;
 			if (Files.isRegularFile(Paths.get(chemicalCompoundsTaggedPathSentences + File.separator + file_to_classify.getName()))) {
 				for (String line : ObjectBank.getLineIterator(chemicalCompoundsTaggedPathSentences + File.separator + file_to_classify.getName(), "utf-8")) {
 					String[] data_chemical_compound = line.split("\t");
 			    	if(data_chemical_compound[0]!=null && data_chemical_compound[0].equals(sentence.getSentenceId())) {
 			    		log.info("Sentence " + sentence.getSentenceId() + " \n " + line);
-			    		EntityInstanceFound entityInstanceFound = retrieveChemicalCompound(data_chemical_compound, entitiesType); 
+			    		EntityInstanceFound entityInstanceFound = retrieveChemicalCompound(data_chemical_compound); 
 			    		if(entityInstanceFound!=null) {
 			    			sentence.addEntityInstanceFound(entityInstanceFound);
+			    			chemicalCompoundsQuantity++;
 			    		}else {
 			    			log.error("Error retrieving chemical compound tagged for sentence " + sentence.getSentenceId() + " in file: " + file_to_classify.getName() );
 			    			log.error("The tagged line is" + data_chemical_compound);
@@ -56,6 +58,7 @@ public class ChemicalCompoundServiceImpl implements ChemicalCompoundService {
 			} else {
 				log.error("File not found " + chemicalCompoundsTaggedPathSentences + File.separator + file_to_classify.getName());
 			}
+			sentence.setChemicalCompoundsQuantity(chemicalCompoundsQuantity);
 		}
 	}
 	/**
@@ -65,33 +68,34 @@ public class ChemicalCompoundServiceImpl implements ChemicalCompoundService {
 	 * @param document
 	 * @param section
 	 */
-	private void retrieveTaggerInfoFromSection(String chemicalCompoundsTaggedPathBlocks, File file_to_classify, Document document, Section section, Map<String,EntityType> entitiesType) {
-		//blocks
+	private void retrieveTaggerInfoFromSection(String chemicalCompoundsTaggedPathBlocks, File file_to_classify, Document document, Section section) {
+		int chemicalCompoundsQuantity = 0;
 		if (Files.isRegularFile(Paths.get(chemicalCompoundsTaggedPathBlocks + File.separator + file_to_classify.getName()))) {
 			for (String line : ObjectBank.getLineIterator(chemicalCompoundsTaggedPathBlocks + File.separator + file_to_classify.getName(), "utf-8")) {
 				String[] data_chemical_compound = line.split("\t");
 		    	if(data_chemical_compound[0]!=null && data_chemical_compound[0].equals(document.getDocumentId())) {
 		    		log.info("Document " + document.getDocumentId() + " \n " + line);
-		    		EntityInstanceFound entityInstanceFound = retrieveChemicalCompound(data_chemical_compound, entitiesType); 
+		    		EntityInstanceFound entityInstanceFound = retrieveChemicalCompound(data_chemical_compound); 
 		    		if(entityInstanceFound!=null) {
 		    			section.addEntityInstanceFound(entityInstanceFound);
+		    			chemicalCompoundsQuantity ++;
 		    		}else {
 		    			log.error("Error retrieving chemical compound tagged for document " + document.getDocumentId() + " in file: " + file_to_classify.getName() );
 		    			log.error("The tagged line is" + data_chemical_compound);
 		    		}
-		    		
 		    	}
 		    }
 		} else {
 			log.error("File not found " + chemicalCompoundsTaggedPathBlocks + File.separator + file_to_classify.getName());
 		}
+		section.setChemicalCompoundsQuantity(chemicalCompoundsQuantity);	
 	}
 	
 	/**
 	 * 
 	 * @param data_chemical_compound
 	 */
-	private EntityInstanceFound retrieveChemicalCompound(String[] data_chemical_compound, Map<String,EntityType> entitiesType) {
+	private EntityInstanceFound retrieveChemicalCompound(String[] data_chemical_compound) {
 		try {
 			String id = data_chemical_compound[0];
 			Integer start = new Integer(data_chemical_compound[1]);
@@ -111,7 +115,7 @@ public class ChemicalCompoundServiceImpl implements ChemicalCompoundService {
 			String kegd = data_chemical_compound[15];
 			String mesh = data_chemical_compound[16];
 			
-			EntityType entityType = entitiesType.get(Constants.CHEMICAL_ENTITY_TYPE);
+			EntityType entityType = entityStructureService.getEntityType(Constants.CHEMICAL_ENTITY_TYPE);
 			List<ReferenceValue> referenceValues = new ArrayList<ReferenceValue>();
 			//Fix put comlumns into text file output
 			if(!(chid==null || (chid!=null && (chid.trim().equals("null")|| chid.trim().equals(""))))) {
@@ -178,4 +182,40 @@ public class ChemicalCompoundServiceImpl implements ChemicalCompoundService {
 		return null;
 	}
 
+	/**
+	 * 
+	 */
+	public void createEntityStructure(Float weightScore) {
+		Reference name = new Reference("name", "Trivial");
+		Reference chid = new Reference("chid", "Chem Id Plus");
+		Reference cheb = new Reference("cheb", "Chebi. Chemical Entities of Biological Interest ");
+		Reference cas = new Reference("cas", "CAS registry number. American Chemical Society");
+		Reference pubc = new Reference("pubc", "PubChem compound");
+		Reference pubs = new Reference("pubs", "PubChem Substance");
+		Reference inch = new Reference("inch", "International Chemical Identifier");
+		Reference drug = new Reference("drug", "The DrugBank database is a unique bioinformatics and cheminformatics resource that combines detailed drug data with comprehensive drug target information");
+		Reference hmbd = new Reference("hmbd","The Human Metabolome Database");
+		Reference kegg = new Reference("kegg","KEGG COMPOUND Database");
+		Reference kegd = new Reference("kegd","KEGG DRUG Database");
+		Reference mesh = new Reference("mesh","MeSH (Medical Subject Headings) is the NLM controlled vocabulary thesaurus used for indexing articles for PubMed.");
+		
+		List<Reference> refereces = new ArrayList<Reference>();
+		refereces.add(name);
+		refereces.add(chid);
+		refereces.add(cheb);
+		refereces.add(cas);
+		refereces.add(pubc);
+		refereces.add(pubs);
+		refereces.add(inch);
+		refereces.add(drug);
+		refereces.add(hmbd);
+		refereces.add(kegg);
+		refereces.add(kegd);
+		refereces.add(mesh);
+		
+		EntityType entityType = new EntityType(Constants.CHEMICAL_ENTITY_TYPE, refereces, weightScore);
+		entityStructureService.putEntityType(Constants.CHEMICAL_ENTITY_TYPE, entityType);
+	}
+	
+	
 }
