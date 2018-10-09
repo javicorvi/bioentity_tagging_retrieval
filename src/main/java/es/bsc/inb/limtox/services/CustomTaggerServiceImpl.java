@@ -89,6 +89,12 @@ public class CustomTaggerServiceImpl implements CustomTaggerService {
 				RelevantTopicInformation relevantTopipInformation = sentence.getRelevantTopicsInformationByName(customEntityNameTagger.getTaggerName());
 				if(relevantTopipInformation!=null) {
 					relevantTopipInformation.setNumberOfTermsScore(numbersOfTerms);
+					relevantTopipInformation.setCustomWeightScore(
+							numbersOfTerms * customEntityNameTagger.getWeightScore() + 
+							sentence.getDiseasesQuantity() * entityStructureService.getEntityType(Constants.DISEASES_ENTITY_TYPE).getWeightScore() + 
+							sentence.getSpeciesQuantity() * entityStructureService.getEntityType(Constants.SPECIES_ENTITY_TYPE).getWeightScore() + 
+							sentence.getChemicalCompoundsQuantity() * entityStructureService.getEntityType(Constants.CHEMICAL_ENTITY_TYPE).getWeightScore() + 
+							sentence.getGenesQuantity() * entityStructureService.getEntityType(Constants.GENES_ENTITY_TYPE).getWeightScore());
 				}
 			}
 				
@@ -132,7 +138,7 @@ public class CustomTaggerServiceImpl implements CustomTaggerService {
 			if(relevantTopipInformation!=null) {
 				relevantTopipInformation.setNumberOfTermsScore(numbersOfTerms);
 				relevantTopipInformation.setCustomWeightScore(
-						numbersOfTerms * 1 + 
+						numbersOfTerms * customEntityNameTagger.getWeightScore() + 
 						section.getDiseasesQuantity() * entityStructureService.getEntityType(Constants.DISEASES_ENTITY_TYPE).getWeightScore() + 
 						section.getSpeciesQuantity() * entityStructureService.getEntityType(Constants.SPECIES_ENTITY_TYPE).getWeightScore() + 
 						section.getChemicalCompoundsQuantity() * entityStructureService.getEntityType(Constants.CHEMICAL_ENTITY_TYPE).getWeightScore() + 
@@ -183,8 +189,10 @@ public class CustomTaggerServiceImpl implements CustomTaggerService {
 			String name = properties.getProperty("customtag."+i+".taggerName");
 			String blocksPath = properties.getProperty("customtag."+i+".taggedTermsPathBlocks");
 			String sentencesPath = properties.getProperty("customtag."+i+".taggedTermsPathSentences");
-			if(name!=null && blocksPath!=null && sentencesPath!=null) {
-				CustomEntityNameTagger customEntityNameTagger= new CustomEntityNameTagger(name, blocksPath, sentencesPath);
+			String weigthScore = properties.getProperty("customtag."+i+".weight.score");
+			if(name!=null && blocksPath!=null && sentencesPath!=null && weigthScore!=null) {
+				Float weigthScore_f = new Float(weigthScore);
+				CustomEntityNameTagger customEntityNameTagger= new CustomEntityNameTagger(name, blocksPath, sentencesPath, weigthScore_f);
 				for (int j = 1; j < 50; j++) {
 					String entity =  properties.getProperty("customtag."+i+".relation."+j+".entity");
 					String relation_name =  properties.getProperty("customtag."+i+".relation."+j+".name");

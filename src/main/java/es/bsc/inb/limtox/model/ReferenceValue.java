@@ -2,15 +2,13 @@ package es.bsc.inb.limtox.model;
 
 public class ReferenceValue {
 	
-	private String value="";
-	
-	private Reference reference;
-	
 	private String referenceName;
+	
+	private String value="";
 	
 	private EntityInstance entityInstance;
 
-	
+	private Reference reference;
 	
 //	public ReferenceValue(String value, Reference reference) {
 //		super();

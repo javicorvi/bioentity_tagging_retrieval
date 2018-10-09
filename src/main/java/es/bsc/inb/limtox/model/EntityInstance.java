@@ -6,13 +6,13 @@ public class EntityInstance {
 
 	private String value="";
 	
-	private EntityType entityType;
-	
-	private List<ReferenceValue> referenceValues;
-	
 	private String entityTypeName;
 	
 	private String taggerName;
+	
+	private List<ReferenceValue> referenceValues;
+	
+	private EntityType entityType;
 	
 	public EntityInstance(String taggerName, String value, EntityType entityType, List<ReferenceValue> referenceValues) {
 		super();

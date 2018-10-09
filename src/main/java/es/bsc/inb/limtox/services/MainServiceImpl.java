@@ -32,6 +32,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.stanford.nlp.ling.CoreAnnotations.LemmaAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.NamedEntityTagAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.PartOfSpeechAnnotation;
+import edu.stanford.nlp.ling.CoreAnnotations.StemAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.TextAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.TokensAnnotation;
 import edu.stanford.nlp.ling.CoreLabel;
@@ -233,23 +234,14 @@ class MainServiceImpl implements MainService {
 				RelevantTopicInformation relevantTopiInformation = sentence.getRelevantTopicsInformationByName(customEntityNameTagger.getTaggerName());
 				if(relevantTopiInformation!=null) {
 					List<EntityInstanceFound> entitiesHepatotoxicityInstanceFound = sentence.findEntitiesInstanceFoundByType(customEntityNameTagger.getTaggerName().toUpperCase());//fix upper 	case
+					Integer co_ocurrences_score = 0;
+					Integer patterns_score = 0;
 					for (EntityAssociation entityAssociation : customEntityNameTagger.getAssociations()) {
 						log.debug(" Entity Association with : " + entityAssociation.getTopicName());
-						Integer co_ocurrences_score = 0;
-						Integer patterns_score = 0;
-				    	List<EntityInstanceFound> entitiesAssociatinoInstanceFound = sentence.findEntitiesInstanceFoundByType(entityAssociation.getTopicName());
+						List<EntityInstanceFound> entitiesAssociatinoInstanceFound = sentence.findEntitiesInstanceFoundByType(entityAssociation.getTopicName());
 				    	for (EntityInstanceFound entityAssociationInstance : entitiesAssociatinoInstanceFound) {
 							for (EntityInstanceFound endPointFound : entitiesHepatotoxicityInstanceFound) {
 								try {
-									if(entityAssociation.getTopicName().equals("species")) {
-										log.debug(" Entity Association with : " + entityAssociation.getTopicName());
-									}
-									if(entityAssociation.getTopicName().equals("diseases")) {
-										log.debug(" Entity Association with : " + entityAssociation.getTopicName());
-									}
-									if(entityAssociation.getTopicName().equals("genes")) {
-										log.debug(" Entity Association with : " + entityAssociation.getTopicName());
-									}
 									String text_between_relation = "";
 									if(entityAssociationInstance.getStart()<endPointFound.getStart()) {
 										text_between_relation = sentence.getText().substring(entityAssociationInstance.getStart(), endPointFound.getEnd());
@@ -266,6 +258,7 @@ class MainServiceImpl implements MainService {
 										String pos = token.get(PartOfSpeechAnnotation.class);
 										String ner = token.get(NamedEntityTagAnnotation.class);
 										String lemma = token.get(LemmaAnnotation.class);
+										//String stem = token.get(StemAnnotation.class);
 										//generate patterns relations
 										for (PatternAssociation patternAssociation : entityAssociation.getPatternAssociations()) {
 											if(Stream.of(patternAssociation.getLemmaKeywords()).anyMatch(x -> x.equals(lemma))) { 

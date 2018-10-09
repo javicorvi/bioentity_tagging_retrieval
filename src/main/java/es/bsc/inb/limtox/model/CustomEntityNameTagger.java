@@ -7,14 +7,17 @@ public class CustomEntityNameTagger {
 
 	private String taggerName;
 	
+	private Float weightScore;
+	
 	private String taggerBlocksPath;
 	
 	private String taggerSentencePath;
 
 	private List<EntityAssociation> associations = new ArrayList<EntityAssociation>();
 	
-	public CustomEntityNameTagger(String taggerName, String taggerBlocksPath, String taggerSentencePath) {
+	public CustomEntityNameTagger(String taggerName, String taggerBlocksPath, String taggerSentencePath, Float weightScore) {
 		this.taggerName = taggerName;
+		this.weightScore = weightScore;
 		this.taggerBlocksPath = taggerBlocksPath;
 		this.taggerSentencePath = taggerSentencePath;
 	}
@@ -53,6 +56,14 @@ public class CustomEntityNameTagger {
 
 	public void addEntityAssociation(EntityAssociation entityAssociation) {
 		associations.add(entityAssociation);
+	}
+
+	public Float getWeightScore() {
+		return weightScore;
+	}
+
+	public void setWeightScore(Float weightScore) {
+		this.weightScore = weightScore;
 	}
 	
 	
