@@ -56,8 +56,8 @@ public class GeneServiceImpl extends EntityServiceImpl implements GeneService{
 			    				speciesQuantity++;
 			    			}*/
 			    		}else {
-			    			log.error("Error retrieving genes tagged for sentence " + sentence.getSentenceId() + " in file: " + file_to_classify.getName() );
-			    			log.error("The tagged line is" + data);
+			    			//log.error("Error retrieving genes tagged for sentence " + sentence.getSentenceId() + " in file: " + file_to_classify.getName() );
+			    			//log.error("The tagged line is" + data);
 			    		}
 			    	}
 			    }
@@ -125,6 +125,7 @@ public class GeneServiceImpl extends EntityServiceImpl implements GeneService{
 			}else if(type!=null && type.equals("Species")){
 				//for now the species will be tagged only for linneas 
 				//entityType = entityStructureService.getEntityType(Constants.SPECIES_ENTITY_TYPE);
+				return null;
 			}else {
 				log.error("Error reading genes tagger " + data + " - type : " + type);
 			}

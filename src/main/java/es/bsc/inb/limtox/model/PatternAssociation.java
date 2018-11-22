@@ -27,7 +27,5 @@ public class PatternAssociation {
 	public void setLemmaKeywords(String[] lemmaKeywords) {
 		this.lemmaKeywords = lemmaKeywords;
 	}
-	
-	
-	
+
 }

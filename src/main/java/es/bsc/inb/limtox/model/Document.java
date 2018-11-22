@@ -18,9 +18,7 @@ public class Document implements LimtoxEntity {
 	private List<RelevantTopicInformation> relevantTopicsInformation = new ArrayList<RelevantTopicInformation>(); 
 	
 	private List<Section> sections = new ArrayList<Section>();
-	
-	//private List<MeshChemicalCompound> meshChemicalCompounds = new ArrayList<MeshChemicalCompound>();
-	
+
 	public Document() {
 		super();
 	}

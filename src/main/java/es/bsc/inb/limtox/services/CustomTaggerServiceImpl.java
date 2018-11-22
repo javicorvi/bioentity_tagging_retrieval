@@ -164,10 +164,18 @@ public class CustomTaggerServiceImpl implements CustomTaggerService {
 			List<ReferenceValue> referenceValues = new ArrayList<ReferenceValue>();
 			for (int i = 5; i < columnNames.length; i++) {
 				String name = columnNames[i];
-				String value = data[i];
-				if(value!=null && !value.trim().equals("null")) {
-					ReferenceValue key_val = new ReferenceValue(name, value);
-					referenceValues.add(key_val);
+				try {
+					String value = data[i];
+					if(value!=null && !value.trim().equals("null")) {
+						if(taggerName.equals("cyps")) {
+							log.error("Cyps");
+						}
+						ReferenceValue key_val = new ReferenceValue(name, value);
+						referenceValues.add(key_val);
+					}
+					//no data for that column, do not forget to put null and complete the information in the tagger.
+				}catch(ArrayIndexOutOfBoundsException e) {
+					
 				}
 			}
 			EntityInstance entityInstance = new EntityInstance(taggerName, text ,entityType, referenceValues);

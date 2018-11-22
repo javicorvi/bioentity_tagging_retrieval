@@ -30,23 +30,6 @@ public class Sentence implements LimtoxEntity {
 	private Document document;
 	
 	private Section section;
-	/*
-	private List<ChemicalCompoundSentence> chemicalCompoundSentences = new ArrayList<ChemicalCompoundSentence>();
-	
-	private List<HepatotoxicityTermSentence> hepatotoxicityTermSentences = new ArrayList<HepatotoxicityTermSentence>();
-	
-	private List<CytochromeSentence> cytochromeSentences = new ArrayList<CytochromeSentence>();
-	
-	private List<MarkerSentence> markerSentences = new ArrayList<MarkerSentence>();
-	
-	private List<ChemicalCompoundCytochromeSentence> chemicalCompoundCytochromeSentences = new ArrayList<ChemicalCompoundCytochromeSentence>();
-
-	private List<HepatotoxicityTermChemicalCompoundSentence> hepatotoxicityTermChemicalCompoundSentences = new ArrayList<HepatotoxicityTermChemicalCompoundSentence>();
-	
-	private List<MarkerChemicalCompoundSentence> markerChemicalCompoundSentences = new ArrayList<MarkerChemicalCompoundSentence>();
-	
-	private List<TaxonomySentence> taxonomySentences = new ArrayList<TaxonomySentence>();
-	*/
 	
 	public Sentence() {}
 
