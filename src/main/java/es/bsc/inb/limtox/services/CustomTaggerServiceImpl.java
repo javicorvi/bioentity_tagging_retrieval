@@ -17,7 +17,9 @@ import es.bsc.inb.limtox.model.Document;
 import es.bsc.inb.limtox.model.EntityAssociation;
 import es.bsc.inb.limtox.model.EntityInstance;
 import es.bsc.inb.limtox.model.EntityInstanceFound;
+import es.bsc.inb.limtox.model.EntityType;
 import es.bsc.inb.limtox.model.PatternAssociation;
+import es.bsc.inb.limtox.model.Reference;
 import es.bsc.inb.limtox.model.ReferenceValue;
 import es.bsc.inb.limtox.model.RelevantTopicInformation;
 import es.bsc.inb.limtox.model.Section;
@@ -41,6 +43,8 @@ public class CustomTaggerServiceImpl implements CustomTaggerService {
 		}
 		
 	}
+	
+	
 	
 	/**
 	 * Retrieve the information of the tagger
@@ -148,6 +152,22 @@ public class CustomTaggerServiceImpl implements CustomTaggerService {
 			log.error("File not found " + customEntityNameTagger.getTaggerBlocksPath() + File.separator + file_to_classify.getName());
 		}
 	}
+	
+	private void createCustomEntityType(CustomEntityNameTagger customEntityNameTagger) {
+		List<Reference> references = new ArrayList<Reference>();
+		if(customEntityNameTagger.getReferences()!=null) {
+			String[] columnNames = customEntityNameTagger.getReferences().split(",");
+			if(columnNames!=null) {
+				for (int i = 0; i < columnNames.length; i++) {
+					Reference reference = new Reference(columnNames[i], "");
+					references.add(reference);
+				}
+			}
+		}
+		EntityType entityType = new EntityType(customEntityNameTagger.getTaggerName(), references, customEntityNameTagger.getWeightScore());
+		entityStructureService.putEntityType(customEntityNameTagger.getTaggerName(), entityType);
+	}
+
 	/**
 	 * Retrieve tag information form tagger line
 	 * @param data
@@ -198,9 +218,10 @@ public class CustomTaggerServiceImpl implements CustomTaggerService {
 			String blocksPath = properties.getProperty("customtag."+i+".taggedTermsPathBlocks");
 			String sentencesPath = properties.getProperty("customtag."+i+".taggedTermsPathSentences");
 			String weigthScore = properties.getProperty("customtag."+i+".weight.score");
+			String references = properties.getProperty("customtag."+i+".references");
 			if(name!=null && blocksPath!=null && sentencesPath!=null && weigthScore!=null) {
 				Float weigthScore_f = new Float(weigthScore);
-				CustomEntityNameTagger customEntityNameTagger= new CustomEntityNameTagger(name, blocksPath, sentencesPath, weigthScore_f);
+				CustomEntityNameTagger customEntityNameTagger= new CustomEntityNameTagger(name, blocksPath, sentencesPath, weigthScore_f, references);
 				for (int j = 1; j < 50; j++) {
 					String entity =  properties.getProperty("customtag."+i+".relation."+j+".entity");
 					String relation_name =  properties.getProperty("customtag."+i+".relation."+j+".name");
@@ -218,8 +239,18 @@ public class CustomTaggerServiceImpl implements CustomTaggerService {
 				customsTaggers.add(customEntityNameTagger);
 			}
 		}
+		this.createCustomTaggersEntityTypes();
 	}
 
+	
+	@Override
+	public void createCustomTaggersEntityTypes() {
+		for (CustomEntityNameTagger customEntityNameTagger : customsTaggers) {
+			createCustomEntityType(customEntityNameTagger);
+		}
+		
+	}
+	
 	public List<CustomEntityNameTagger> getCustomsTaggers() {
 		return customsTaggers;
 	}
@@ -227,6 +258,8 @@ public class CustomTaggerServiceImpl implements CustomTaggerService {
 	public void setCustomsTaggers(List<CustomEntityNameTagger> customsTaggers) {
 		this.customsTaggers = customsTaggers;
 	}
+
+	
 	
 	
 	

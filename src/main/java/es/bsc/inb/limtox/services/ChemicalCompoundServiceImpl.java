@@ -119,7 +119,7 @@ public class ChemicalCompoundServiceImpl extends EntityServiceImpl implements Ch
 			List<ReferenceValue> referenceValues = new ArrayList<ReferenceValue>();
 			//Fix put comlumns into text file output
 			if(!(chid==null || (chid!=null && (chid.trim().equals("null")|| chid.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(chid, entityType.getReferenceByName("chid").getName());
+				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_CHID, entityType.getReferenceByName("chid").getName());
 				referenceValues.add(v);
 			}
 			

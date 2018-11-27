@@ -7,4 +7,6 @@ public interface EntityStructureService {
 	public EntityType getEntityType(String entityTypeName);
 	
 	public EntityType putEntityType(String entityTypeName, EntityType entityType);
+	
+	public void generateEntityStructureJSON(String outputFile);
 }

@@ -14,5 +14,7 @@ public interface CustomTaggerService {
 
 	public void readCustomTaggedEntitiesProperties(Properties propertiesParameters);
 	
-	public List<CustomEntityNameTagger> getCustomsTaggers(); 
+	public List<CustomEntityNameTagger> getCustomsTaggers();
+
+	public void createCustomTaggersEntityTypes(); 
 }

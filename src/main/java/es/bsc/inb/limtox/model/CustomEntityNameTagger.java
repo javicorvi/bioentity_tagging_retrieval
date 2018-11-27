@@ -12,14 +12,17 @@ public class CustomEntityNameTagger {
 	private String taggerBlocksPath;
 	
 	private String taggerSentencePath;
-
+	
+	private String references;
+	
 	private List<EntityAssociation> associations = new ArrayList<EntityAssociation>();
 	
-	public CustomEntityNameTagger(String taggerName, String taggerBlocksPath, String taggerSentencePath, Float weightScore) {
+	public CustomEntityNameTagger(String taggerName, String taggerBlocksPath, String taggerSentencePath, Float weightScore, String references) {
 		this.taggerName = taggerName;
 		this.weightScore = weightScore;
 		this.taggerBlocksPath = taggerBlocksPath;
 		this.taggerSentencePath = taggerSentencePath;
+		this.setReferences(references);
 	}
 
 	public String getTaggerName() {
@@ -64,6 +67,14 @@ public class CustomEntityNameTagger {
 
 	public void setWeightScore(Float weightScore) {
 		this.weightScore = weightScore;
+	}
+
+	public String getReferences() {
+		return references;
+	}
+
+	public void setReferences(String references) {
+		this.references = references;
 	}
 	
 	

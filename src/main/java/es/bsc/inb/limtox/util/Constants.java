@@ -1,10 +1,5 @@
 package es.bsc.inb.limtox.util;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import es.bsc.inb.limtox.model.EntityType;
-
 public abstract class Constants {
 
 	
@@ -13,6 +8,7 @@ public abstract class Constants {
 	public static final String SPECIES_ENTITY_TYPE = "species";
 	public static final String DISEASES_ENTITY_TYPE = "diseases";
 	public static final String GENES_ENTITY_TYPE = "genes";
+	public static final String CHEMICAL_CHID = "chid";
 	public static final String CHEMICAL_CHEB = "cheb";
 	public static final String CHEMICAL_CAS = "cas";
 	public static final String CHEMICAL_PUBC = "pubc";

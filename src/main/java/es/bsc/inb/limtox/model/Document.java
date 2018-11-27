@@ -96,6 +96,19 @@ public class Document implements LimtoxEntity {
 	public void addSection(Section section) {
 		sections.add(section);
 	}
+
+
+
+	public Section findSectionByName(String sectionName) {
+		if(sections!=null) {
+			for (Section section : sections) {
+				if(section.getName().equals(sectionName)) {
+					return section;
+				}
+			}
+		}
+		return null;
+	}
 	
 	
 	

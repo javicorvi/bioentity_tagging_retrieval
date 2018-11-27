@@ -74,6 +74,9 @@ class MainServiceImpl implements MainService {
 	@Autowired
 	GeneService geneService;
 	
+	@Autowired
+	protected EntityStructureService entityStructureService;
+	
 	public void execute(String propertiesParametersPath) {
 		try {
 			
@@ -90,6 +93,7 @@ class MainServiceImpl implements MainService {
 			String inputArticlesDirectoryPath = propertiesParameters.getProperty("inputArticlesDirectory");
 			String inputSentencesDirectoryPath = propertiesParameters.getProperty("inputSentencesDirectory");
 			String outputDirectoryPath = propertiesParameters.getProperty("outputDirectory");
+			String outputEntityStructureFilePath = propertiesParameters.getProperty("outputEntityStructureFilePath");
 			
 			File inputArticlesDirectory = new File(inputArticlesDirectoryPath);
 		    if(!inputArticlesDirectory.exists()) {
@@ -164,6 +168,8 @@ class MainServiceImpl implements MainService {
 			
 			customTaggerService.readCustomTaggedEntitiesProperties(propertiesParameters);
 			
+			entityStructureService.generateEntityStructureJSON(outputEntityStructureFilePath);
+			
 			List<String> filesProcessed = readFilesProcessed(outputDirectoryPath); 
 		    BufferedWriter filesPrecessedWriter = new BufferedWriter(new FileWriter(outputDirectoryPath + File.separator + "list_files_processed.dat", true));
 		    
@@ -232,8 +238,9 @@ class MainServiceImpl implements MainService {
 				log.debug("Sentence Id: " + sentence.getSentenceId());
 				log.debug("Sentence Text : " + sentence.getText());
 				RelevantTopicInformation relevantTopiInformation = sentence.getRelevantTopicsInformationByName(customEntityNameTagger.getTaggerName());
+				
 				if(relevantTopiInformation!=null) {
-					List<EntityInstanceFound> entitiesHepatotoxicityInstanceFound = sentence.findEntitiesInstanceFoundByType(customEntityNameTagger.getTaggerName().toUpperCase());//fix upper 	case
+					List<EntityInstanceFound> entitiesHepatotoxicityInstanceFound = sentence.findEntitiesInstanceFoundByType(customEntityNameTagger.getTaggerName());
 					Integer co_ocurrences_score = 0;
 					Integer patterns_score = 0;
 					for (EntityAssociation entityAssociation : customEntityNameTagger.getAssociations()) {
@@ -358,12 +365,26 @@ class MainServiceImpl implements MainService {
 					
 					RelevantSentenceTopicInformation relevantSentenceTopicInformation = new RelevantSentenceTopicInformation(relevantTopic, score);
 					Document document =  documents.get(docId);
+					
+					Sentence sentence = new Sentence(id_sentence, order, text);
+					sentence.addRelevantTopicInformation(relevantSentenceTopicInformation);
+					
 					if(document!=null) {
-						Sentence sentence = new Sentence(id_sentence, order, text);
-						document.getSections().get(0).addSentence(sentence);
-						sentence.addRelevantTopicInformation(relevantSentenceTopicInformation);
-						//document.getSentences().add(sentence);
+						//Sentence sentence = new Sentence(id_sentence, order, text);
+						Section section_model = document.findSectionByName(section);
+						if(section_model!=null) {
+							section_model.addSentence(sentence);
+						}else {
+							log.error(" There is no section named : " + section  + " in the document " + docId + " in the file : " + file_to_classify);
+						}
 					}else {
+						//create document and section this is for sentences that are alone, meaning that his section was not classified as relevant.
+						DocumentSource documentSource = new DocumentSource(source);
+						document = new Document(docId, documentSource, "");
+						Section section_model = new Section(section, "");
+						document.addSection(section_model);
+						section_model.addSentence(sentence);
+						documents.put(docId, document);
 						log.info(" The sentence do not correspond to a paragraph id:  " + id_sentence );
 					}
 				}catch (Exception e) {
@@ -425,7 +446,7 @@ class MainServiceImpl implements MainService {
 	 }	
 	 
 	 
-	 @SuppressWarnings("unused")
+	@SuppressWarnings("unused")
 	private void generateJSONFile(Document document, String outputPath)  {
 			ObjectMapper objectMapper = new ObjectMapper();
 			objectMapper.setSerializationInclusion(Include.NON_NULL);
