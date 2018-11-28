@@ -32,7 +32,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.stanford.nlp.ling.CoreAnnotations.LemmaAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.NamedEntityTagAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.PartOfSpeechAnnotation;
-import edu.stanford.nlp.ling.CoreAnnotations.StemAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.TextAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.TokensAnnotation;
 import edu.stanford.nlp.ling.CoreLabel;
@@ -163,16 +162,13 @@ class MainServiceImpl implements MainService {
 				specieService.createEntityStructure(speciesWeightScore);
 			}
 			
-			Boolean enableLTKB = propertiesParameters.getProperty("enableLTKB")!=null & 
-					propertiesParameters.getProperty("enableLTKB").equals("true");
+			Boolean enableLTKB = propertiesParameters.getProperty("enableLTKB")!=null & propertiesParameters.getProperty("enableLTKB").equals("true");
 			
 			customTaggerService.readCustomTaggedEntitiesProperties(propertiesParameters);
-			
 			entityStructureService.generateEntityStructureJSON(outputEntityStructureFilePath);
 			
 			List<String> filesProcessed = readFilesProcessed(outputDirectoryPath); 
 		    BufferedWriter filesPrecessedWriter = new BufferedWriter(new FileWriter(outputDirectoryPath + File.separator + "list_files_processed.dat", true));
-		    
 		    File[] files =  inputArticlesDirectory.listFiles();
 			for (File file_to_classify : files) {
 				if(file_to_classify.getName().endsWith(".txt") && filesProcessed!=null && !filesProcessed.contains(file_to_classify.getName())){
@@ -296,7 +292,7 @@ class MainServiceImpl implements MainService {
 						//log.debug("End Point patterns : " + relevantTopiInformation.getCoOcurrenceScore());
 				    }
 				}else {
-					log.warn("The relevant topic information is not present : " + customEntityNameTagger.getTaggerName());
+					log.debug("The relevant topic information is not present : " + customEntityNameTagger.getTaggerName());
 				}
 			}
 		}
@@ -385,7 +381,7 @@ class MainServiceImpl implements MainService {
 						document.addSection(section_model);
 						section_model.addSentence(sentence);
 						documents.put(docId, document);
-						log.info(" The sentence do not correspond to a paragraph id:  " + id_sentence );
+						log.debug(" The sentence do not correspond to a paragraph id:  " + id_sentence );
 					}
 				}catch (Exception e) {
 					log.error(" Error loadinding sentence line " + line + " from file " + file_to_classify.getAbsolutePath(), e);

@@ -103,7 +103,11 @@ public class Section implements LimtoxEntity {
 
 	public void addEntityInstanceFound(EntityInstanceFound entityInstanceFound) {
 		entitiesInstanceFound.add(entityInstanceFound);
-		
+	}
+	
+
+	public void removeEntityInstanceFound(EntityInstanceFound entityInstanceFound) {
+		entitiesInstanceFound.remove(entityInstanceFound);
 	}
 	
 	public RelevantTopicInformation getRelevantTopicsInformationByName(String topicName) {
@@ -145,6 +149,20 @@ public class Section implements LimtoxEntity {
 
 	public void setChemicalCompoundsQuantity(Integer chemicalCompoundsQuantity) {
 		this.chemicalCompoundsQuantity = chemicalCompoundsQuantity;
+	}
+	
+	/**
+	 * Find entityInstance By Id
+	 * @param entityInstanceId
+	 * @return
+	 */
+	public EntityInstanceFound findEntityInstanceFoundById(String entityInstanceId) {
+		for (EntityInstanceFound entityInstanceFound : entitiesInstanceFound) {
+			if(entityInstanceFound.getEntityInstanceId().equals(entityInstanceId)) {
+				return entityInstanceFound;
+			}
+		}
+		return null;
 	}
 	
 	

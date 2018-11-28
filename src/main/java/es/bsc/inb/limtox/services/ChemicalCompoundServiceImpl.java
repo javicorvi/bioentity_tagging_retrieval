@@ -44,7 +44,7 @@ public class ChemicalCompoundServiceImpl extends EntityServiceImpl implements Ch
 				for (String line : ObjectBank.getLineIterator(chemicalCompoundsTaggedPathSentences + File.separator + file_to_classify.getName(), "utf-8")) {
 					String[] data_chemical_compound = line.split("\t");
 			    	if(data_chemical_compound[0]!=null && data_chemical_compound[0].equals(sentence.getSentenceId())) {
-			    		log.info("Sentence " + sentence.getSentenceId() + " \n " + line);
+			    		//log.info("Sentence " + sentence.getSentenceId() + " \n " + line);
 			    		EntityInstanceFound entityInstanceFound = retrieveChemicalCompound(data_chemical_compound); 
 			    		if(entityInstanceFound!=null) {
 			    			sentence.addEntityInstanceFound(entityInstanceFound);
@@ -74,7 +74,7 @@ public class ChemicalCompoundServiceImpl extends EntityServiceImpl implements Ch
 			for (String line : ObjectBank.getLineIterator(chemicalCompoundsTaggedPathBlocks + File.separator + file_to_classify.getName(), "utf-8")) {
 				String[] data_chemical_compound = line.split("\t");
 		    	if(data_chemical_compound[0]!=null && data_chemical_compound[0].equals(document.getDocumentId())) {
-		    		log.info("Document " + document.getDocumentId() + " \n " + line);
+		    		//log.info("Document " + document.getDocumentId() + " \n " + line);
 		    		EntityInstanceFound entityInstanceFound = retrieveChemicalCompound(data_chemical_compound); 
 		    		if(entityInstanceFound!=null) {
 		    			section.addEntityInstanceFound(entityInstanceFound);
@@ -119,7 +119,7 @@ public class ChemicalCompoundServiceImpl extends EntityServiceImpl implements Ch
 			List<ReferenceValue> referenceValues = new ArrayList<ReferenceValue>();
 			//Fix put comlumns into text file output
 			if(!(chid==null || (chid!=null && (chid.trim().equals("null")|| chid.trim().equals(""))))) {
-				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_CHID, entityType.getReferenceByName("chid").getName());
+				ReferenceValue v = new ReferenceValue(Constants.CHEMICAL_CHID, chid);
 				referenceValues.add(v);
 			}
 			

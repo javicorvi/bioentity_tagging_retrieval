@@ -80,8 +80,17 @@ public class CustomTaggerServiceImpl implements CustomTaggerService {
 				    		log.info("Sentence " + sentence.getSentenceId() + " \n " + line);
 				    		EntityInstanceFound entityInstanceFound = retrieveTag(customEntityNameTagger.getTaggerName(), data, columnNames); 
 				    		if(entityInstanceFound!=null) {
-				    			numbersOfTerms++;
-				    			sentence.addEntityInstanceFound(entityInstanceFound);
+				    			//si ya se encuentra esa posicion taggeada me quedo con el que mas peso tiene.
+				    			EntityInstanceFound taggedAlreadyEntityInstanceFound = sentence.findEntityInstanceFoundById(entityInstanceFound.getEntityInstanceId());
+				    			if(taggedAlreadyEntityInstanceFound==null) {
+				    				numbersOfTerms++;
+				    				sentence.addEntityInstanceFound(entityInstanceFound);
+				    			}else {
+				    				//if(taggedAlreadyEntityInstanceFound.getEntityInstance().getEntityType().getWeightScore()<=entityInstanceFound.getEntityInstance().getEntityType().getWeightScore()) {
+				    					sentence.addEntityInstanceFound(entityInstanceFound);
+				    					sentence.removeEntityInstanceFound(taggedAlreadyEntityInstanceFound);
+				    				//}fix try to get the weight
+				    			}
 				    		}else {
 				    			log.error("Error retrieving diseases tagged for sentence " + sentence.getSentenceId() + " in file: " + file_to_classify.getName() );
 				    			log.error("The tagged line is" + data);
@@ -128,8 +137,17 @@ public class CustomTaggerServiceImpl implements CustomTaggerService {
 			    		log.info("Document " + document.getDocumentId() + " \n " + line);
 			    		EntityInstanceFound entityInstanceFound = retrieveTag(customEntityNameTagger.getTaggerName(),data, columnNames); 
 			    		if(entityInstanceFound!=null) {
-			    			numbersOfTerms++;
-			    			section.addEntityInstanceFound(entityInstanceFound);
+			    			//si ya se encuentra esa posicion taggeada me quedo con el que mas peso tiene.
+			    			EntityInstanceFound taggedAlreadyEntityInstanceFound = section.findEntityInstanceFoundById(entityInstanceFound.getEntityInstanceId());
+			    			if(taggedAlreadyEntityInstanceFound==null) {
+			    				numbersOfTerms++;
+				    			section.addEntityInstanceFound(entityInstanceFound);
+			    			}else {
+			    				//if(taggedAlreadyEntityInstanceFound.getEntityInstance().getEntityType().getWeightScore()<=entityInstanceFound.getEntityInstance().getEntityType().getWeightScore()) {
+			    					section.addEntityInstanceFound(entityInstanceFound);
+			    					section.removeEntityInstanceFound(taggedAlreadyEntityInstanceFound);
+			    				//}fix try to get the weight
+			    			}
 			    		}else {
 			    			log.error("Error retrieving tagger info for document " + document.getDocumentId() + " in file: " + file_to_classify.getName() );
 			    			log.error("The tagged line is" + data);
@@ -187,9 +205,6 @@ public class CustomTaggerServiceImpl implements CustomTaggerService {
 				try {
 					String value = data[i];
 					if(value!=null && !value.trim().equals("null")) {
-						if(taggerName.equals("cyps")) {
-							log.error("Cyps");
-						}
 						ReferenceValue key_val = new ReferenceValue(name, value);
 						referenceValues.add(key_val);
 					}
